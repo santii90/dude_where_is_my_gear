@@ -1,0 +1,206 @@
+--[[
+Death penalties is inspired by EFT, where you lose all your gear when you die.
+The idea is to put together a hideout with some extra weapons and gear,
+still you'll have the opportunity of getting some of your gear back if you return (and survive) to the place where you died.
+You'll lose a % of money and also equipped items will lose condition when you drop them.
+
+
+I used Minecraft_Respawn code as a baseline for the project, so thanks to RavenAscendant for that.
+https://www.moddb.com/mods/stalker-anomaly/addons/minecraft-respawn
+--]] 
+local sleep = {
+    level = false,
+    position = false,
+    level_vert = false,
+    game_vert = false,
+    dead = false,
+    stash_created = false,
+    sleep_created = false
+}
+
+function on_game_start()
+    local ini_stash = ini_file("items\\settings\\backpack_stash.ltx")
+    keep_items = utils_data.collect_section(ini_stash, "actor_backpack_keep_items", true)
+    RegisterScriptCallback("actor_on_before_death", actor_on_before_death)
+    RegisterScriptCallback("actor_on_sleep", actor_on_sleep)
+    RegisterScriptCallback("save_state", save_state)
+    RegisterScriptCallback("load_state", load_state)
+    RegisterScriptCallback("actor_on_stash_create", actor_on_stash_create)
+    RegisterScriptCallback("actor_on_stash_remove", actor_on_stash_remove)
+end
+
+function on_game_load()
+    if sleep.dead then
+        sleep.dead = false
+        bind_stalker_ext.invulnerable_time = time_global() + 30000
+        gamemode_azazel.heal_everything()
+
+        -- Transition
+        level.add_pp_effector("deimos1.ppe", 210410, false)
+    end
+end
+
+function print_dbg(text, ...)
+    if true then
+        printf("RAX: | %s |  " .. text, time_global(), ...)
+    end
+end
+
+function actor_on_before_death(who, flags)
+    if not (sleep.level and sleep.position.x and sleep.position.y and sleep.position.z) then
+        print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y,
+            sleep.position.z, sleep.level_vert, sleep.game_vert)
+
+        return
+    end
+    bind_stalker_ext.invulnerable_time = time_global() + 30000
+    flags.ret_value = false
+    db.actor:set_health_ex(1)
+    if not sleep.dead then
+        drop_stash()
+    end
+end
+
+keep_items = nil
+
+function drop_stash()
+    sleep.dead = true
+    local max_money_percentage = 0.65
+    local actor = db.actor
+    local se_obj = alife_create("inv_backpack", actor:position(), actor:level_vertex_id(), actor:game_vertex_id())
+    local ignore_items = {
+        ["device_pda_1"] = true,
+        ["device_pda_2"] = true,
+        ["device_pda_3"] = true,
+        ["detector_simple"] = true
+    }
+    if (se_obj) then
+        local txt = strformat(game.translate_string("st_itm_stash_of_character"), db.actor:character_name())
+        level.map_add_object_spot_ser(se_obj.id, "treasure", txt)
+        actor_menu.set_msg(1, game.translate_string("st_stash_created"), 4)
+
+        local m_data = alife_storage_manager.get_state()
+        if not (m_data.player_created_stashes) then
+            m_data.player_created_stashes = {}
+        end
+
+        m_data.player_created_stashes[se_obj.id] = itm_backpack
+
+        -- Lose money
+        local current_money = actor:money()
+        local money_to_lose = math.random(0, math.floor(current_money * max_money_percentage))
+        db.actor:give_money(-money_to_lose)
+
+        local function transfer_items(id)
+            local obj = level.object_by_id(id)
+            if (obj) then
+                local function itr_inv(temp, item)
+                    print_dbg("item: %s", item:section())
+                    if not (ignore_items[item:section()]) then
+                        if (item and item:id() ~= b_id and keep_items[item:section()] == nil) then
+                            -- if (IsAmmo(item) ~= true) or (item_backpack.is_ammo_for_wpn(item:section()) ~= true) then
+                            if (ini_sys:r_bool_ex(item:section(), "quest_item", false) == false) then
+                                if (item_backpack.is_in_slot(item) == true) then
+                                    -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
+                                    local condition = item:condition()
+                                    local condition_reduction = math.random(2, 20) / 100
+                                    condition = condition - condition_reduction
+                                    if (condition < 0) then
+                                        condition = 0
+                                    end
+                                    item:set_condition(condition)
+                                    db.actor:transfer_item(item, obj)
+                                else
+                                    db.actor:transfer_item(item, obj)
+                                end
+                            end
+                            -- end
+                        end
+                    end
+                end
+                print_dbg("SLEEP before itr_inv")
+                db.actor:iterate_inventory(itr_inv)
+                teleport()
+                return true
+            end
+            return false
+        end
+        print_dbg("SLEEP before event")
+        CreateTimeEvent("RAX SleepSpawn", "actor_backpack", 0, transfer_items, se_obj.id)
+    end
+end
+
+function teleport()
+    print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
+        sleep.level_vert, sleep.game_vert)
+    if sleep.level and sleep.position and sleep.level_vert and sleep.game_vert then
+        print_dbg("SLEEP enter tele1")
+        if (sleep.level == level.name()) then
+            print_dbg("SLEEP enter tele2")
+            gamemode_azazel.heal_everything()
+
+            -- Transition
+            level.add_pp_effector("deimos1.ppe", 210410, false)
+
+            db.actor:set_actor_position(sleep.position)
+            sleep.dead = false
+        else
+            print_dbg("SLEEP enter tele3")
+            ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
+        end
+
+    end
+    return true
+end
+
+function save_position(stash_data)
+    pos = db.actor:position()
+    print_dbg("SAVE POSITION %s| %s %s %s |", level.name(), pos.x, pos.y, pos.z)
+    sleep.level = level.name()
+    sleep.posX = pos.x
+    sleep.posY = pos.y
+    sleep.posZ = pos.z
+    sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
+    sleep.level_vert = db.actor:level_vertex_id()
+    sleep.game_vert = db.actor:game_vertex_id()
+    level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
+end
+
+function actor_on_sleep()
+    if sleep.stash_created ~= true then
+        print_dbg("SET POSITION on SLEEP")
+        sleep.sleep_created = true;
+        save_position()
+    end
+end
+
+function actor_on_stash_create(data)
+    print_dbg("SET POSITION on STASH CREATE %s", data.stash_id)
+    sleep.stash_created = true;
+    save_position(data)
+end
+
+function actor_on_stash_remove()
+    sleep.stash_created = false;
+    print_dbg("STASH REMOVED, stash_created = %s", sleep.stash_created)
+end
+
+-- NOT WORKING, NEED TO FIGURE OUT ANOTHER APPROACH
+function actor_on_save()
+    print_dbg("ON SAVE | %s %s", sleep.stash_created, sleep.sleep_created)
+    if sleep.stash_created == false and sleep.sleep_created == false then
+        print_dbg("SET POSITION on SAVE")
+        save_position()
+    end
+end
+
+function save_state(mdata)
+    mdata.RAX_sleep_location = sleep
+
+end
+
+function load_state(mdata)
+    sleep = mdata.RAX_sleep_location or sleep
+    sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
+end
+
