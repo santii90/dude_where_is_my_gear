@@ -7,8 +7,7 @@ You'll lose a % of money and also equipped items will lose condition when you dr
 
 I used Minecraft_Respawn code as a baseline for the project, so thanks to RavenAscendant for that.
 https://www.moddb.com/mods/stalker-anomaly/addons/minecraft-respawn
---]] 
-local sleep = {
+--]] local sleep = {
     level = false,
     position = false,
     level_vert = false,
@@ -66,6 +65,9 @@ keep_items = nil
 function drop_stash()
     sleep.dead = true
     local max_money_percentage = 0.65
+    local max_money_to_drop_percentage = 0.40
+    local max_condition_lose = 20
+    local min_condition_lose = 2
     local actor = db.actor
     local se_obj = alife_create("inv_backpack", actor:position(), actor:level_vertex_id(), actor:game_vertex_id())
     local ignore_items = {
@@ -91,6 +93,24 @@ function drop_stash()
         local money_to_lose = math.random(0, math.floor(current_money * max_money_percentage))
         db.actor:give_money(-money_to_lose)
 
+        local denominations = {
+            {name="money_1000", value=1000},
+            {name="money_100", value=100},
+            {name="money_10", value=10}
+        }
+        
+        local money_left = money_to_lose - math.random(money_to_lose, math.floor(money_to_lose * max_money_to_drop_percentage))
+        
+        for _, denom in ipairs(denominations) do
+            local num_items_to_create = math.floor(money_left / denom.value)
+            money_left = money_left % denom.value
+            for i = 1, num_items_to_create do
+                alife_create_item(denom.name, se_obj)
+            end
+        end
+        
+        print_dbg("Total money to lose: " .. money_to_lose)
+
         local function transfer_items(id)
             local obj = level.object_by_id(id)
             if (obj) then
@@ -103,7 +123,7 @@ function drop_stash()
                                 if (item_backpack.is_in_slot(item) == true) then
                                     -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
                                     local condition = item:condition()
-                                    local condition_reduction = math.random(2, 20) / 100
+                                    local condition_reduction = math.random(min_condition_lose, max_condition_lose) / 100
                                     condition = condition - condition_reduction
                                     if (condition < 0) then
                                         condition = 0
@@ -203,4 +223,3 @@ function load_state(mdata)
     sleep = mdata.RAX_sleep_location or sleep
     sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
 end
-
