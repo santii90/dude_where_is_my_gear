@@ -26,6 +26,7 @@ function on_game_start()
     RegisterScriptCallback("load_state", load_state)
     RegisterScriptCallback("actor_on_stash_create", actor_on_stash_create)
     RegisterScriptCallback("actor_on_stash_remove", actor_on_stash_remove)
+    RegisterScriptCallback("on_game_load", on_game_load) 
 end
 
 function on_game_load()
