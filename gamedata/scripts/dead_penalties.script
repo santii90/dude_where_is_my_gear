@@ -29,6 +29,8 @@ function load_settings()
 end
 
 function on_game_start()
+    RegisterScriptCallback("on_option_change", load_settings)
+    RegisterScriptCallback("on_game_load", load_settings)
     local ini_stash = ini_file("items\\settings\\backpack_stash.ltx")
     keep_items = utils_data.collect_section(ini_stash, "actor_backpack_keep_items", true)
     RegisterScriptCallback("actor_on_before_death", actor_on_before_death)
@@ -112,8 +114,7 @@ function drop_stash()
             value = 10
         }}
 
-        local money_left = money_to_lose -
-                               math.random(money_to_lose, math.floor(money_to_lose * max_money_to_drop_percentage))
+        local money_left = math.random(0, math.floor(money_to_lose * max_money_to_drop_percentage))
 
         for _, denom in ipairs(denominations) do
             local num_items_to_create = math.floor(money_left / denom.value)
