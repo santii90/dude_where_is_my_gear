@@ -20,6 +20,7 @@ local sleep = {
     stash_created = false,
     sleep_created = false
 }
+local enable_TimeSkip = true
 
 function load_settings()
     max_money_percentage = Dead_penalties_mcm.get_config("max_money_percentage")
@@ -166,6 +167,20 @@ function drop_stash()
     end
 end
 
+--- Forward Time ---
+local forwardTimeMinHours = 6
+local forwardTimeMaxHours = 72
+function forward_time()
+    if enable_TimeSkip then
+        local p = {}
+        p[1] = math.random(forwardTimeMinHours, forwardTimeMaxHours)
+        p[2] = math.random(0, 59)
+        xr_effects.forward_game_time(nil, nil, p)
+        local forward_text = tostring("You have been out of action for " .. p[1] .. " Hours and " .. p[2] .. " Minutes")
+        db.actor:give_game_news("Severe Injured", forward_text, "ui_inGame2_neutral_2_mask", 0, 20000)
+    end
+end
+
 function teleport()
     print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
         sleep.level_vert, sleep.game_vert)
@@ -173,8 +188,10 @@ function teleport()
         print_dbg("SLEEP enter tele1")
         if (sleep.level == level.name()) then
             print_dbg("SLEEP enter tele2")
+            -- Forward Time
+            forward_time()
+            -- Heal
             gamemode_azazel.heal_everything()
-
             -- Transition
             level.add_pp_effector("deimos1.ppe", 210410, false)
 
