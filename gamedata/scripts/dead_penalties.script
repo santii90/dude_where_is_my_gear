@@ -7,7 +7,11 @@ You'll lose a % of money and also equipped items will lose condition when you dr
 
 I used Minecraft_Respawn code as a baseline for the project, so thanks to RavenAscendant for that.
 https://www.moddb.com/mods/stalker-anomaly/addons/minecraft-respawn
---]] local sleep = {
+--]] local max_money_percentage
+local max_money_to_drop_percentage
+local max_condition_lose
+local min_condition_lose
+local sleep = {
     level = false,
     position = false,
     level_vert = false,
@@ -16,6 +20,13 @@ https://www.moddb.com/mods/stalker-anomaly/addons/minecraft-respawn
     stash_created = false,
     sleep_created = false
 }
+
+function load_settings()
+    max_money_percentage = Dead_penalties_mcm.get_config("max_money_percentage")
+    max_money_to_drop_percentage = Dead_penalties_mcm.get_config("max_money_to_drop_percentage")
+    max_condition_lose = Dead_penalties_mcm.get_config("max_condition_lose")
+    min_condition_lose = Dead_penalties_mcm.get_config("min_condition_lose")
+end
 
 function on_game_start()
     local ini_stash = ini_file("items\\settings\\backpack_stash.ltx")
@@ -26,7 +37,7 @@ function on_game_start()
     RegisterScriptCallback("load_state", load_state)
     RegisterScriptCallback("actor_on_stash_create", actor_on_stash_create)
     RegisterScriptCallback("actor_on_stash_remove", actor_on_stash_remove)
-    RegisterScriptCallback("on_game_load", on_game_load) 
+    RegisterScriptCallback("on_game_load", on_game_load)
 end
 
 function on_game_load()
@@ -65,10 +76,6 @@ keep_items = nil
 
 function drop_stash()
     sleep.dead = true
-    local max_money_percentage = 0.65
-    local max_money_to_drop_percentage = 0.40
-    local max_condition_lose = 20
-    local min_condition_lose = 2
     local actor = db.actor
     local se_obj = alife_create("inv_backpack", actor:position(), actor:level_vertex_id(), actor:game_vertex_id())
     local ignore_items = {
@@ -94,14 +101,20 @@ function drop_stash()
         local money_to_lose = math.random(0, math.floor(current_money * max_money_percentage))
         db.actor:give_money(-money_to_lose)
 
-        local denominations = {
-            {name="money_1000", value=1000},
-            {name="money_100", value=100},
-            {name="money_10", value=10}
-        }
-        
-        local money_left = money_to_lose - math.random(money_to_lose, math.floor(money_to_lose * max_money_to_drop_percentage))
-        
+        local denominations = {{
+            name = "money_1000",
+            value = 1000
+        }, {
+            name = "money_100",
+            value = 100
+        }, {
+            name = "money_10",
+            value = 10
+        }}
+
+        local money_left = money_to_lose -
+                               math.random(money_to_lose, math.floor(money_to_lose * max_money_to_drop_percentage))
+
         for _, denom in ipairs(denominations) do
             local num_items_to_create = math.floor(money_left / denom.value)
             money_left = money_left % denom.value
@@ -109,7 +122,7 @@ function drop_stash()
                 alife_create_item(denom.name, se_obj)
             end
         end
-        
+
         print_dbg("Total money to lose: " .. money_to_lose)
 
         local function transfer_items(id)
@@ -124,7 +137,8 @@ function drop_stash()
                                 if (item_backpack.is_in_slot(item) == true) then
                                     -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
                                     local condition = item:condition()
-                                    local condition_reduction = math.random(min_condition_lose, max_condition_lose) / 100
+                                    local condition_reduction =
+                                        math.random(min_condition_lose, max_condition_lose) / 100
                                     condition = condition - condition_reduction
                                     if (condition < 0) then
                                         condition = 0
