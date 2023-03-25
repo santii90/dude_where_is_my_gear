@@ -11,6 +11,7 @@ https://www.moddb.com/mods/stalker-anomaly/addons/minecraft-respawn
 local max_money_to_drop_percentage
 local max_condition_lose
 local min_condition_lose
+local enable_time_forward
 local sleep = {
     level = false,
     position = false,
@@ -20,13 +21,13 @@ local sleep = {
     stash_created = false,
     sleep_created = false
 }
-local enable_TimeSkip = true
 
 function load_settings()
     max_money_percentage = Dead_penalties_mcm.get_config("max_money_percentage")
     max_money_to_drop_percentage = Dead_penalties_mcm.get_config("max_money_to_drop_percentage")
     max_condition_lose = Dead_penalties_mcm.get_config("max_condition_lose")
     min_condition_lose = Dead_penalties_mcm.get_config("min_condition_lose")
+    enable_time_forward = Dead_penalties_mcm.get_config("enable_time_forward")
 end
 
 function on_game_start()
@@ -64,7 +65,6 @@ function actor_on_before_death(who, flags)
     if not (sleep.level and sleep.position.x and sleep.position.y and sleep.position.z) then
         print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y,
             sleep.position.z, sleep.level_vert, sleep.game_vert)
-
         return
     end
     bind_stalker_ext.invulnerable_time = time_global() + 30000
@@ -171,7 +171,7 @@ end
 local forwardTimeMinHours = 6
 local forwardTimeMaxHours = 72
 function forward_time()
-    if enable_TimeSkip then
+    if enable_time_forward then
         local p = {}
         p[1] = math.random(forwardTimeMinHours, forwardTimeMaxHours)
         p[2] = math.random(0, 59)
@@ -188,10 +188,10 @@ function teleport()
         print_dbg("SLEEP enter tele1")
         if (sleep.level == level.name()) then
             print_dbg("SLEEP enter tele2")
-            -- Forward Time
-            forward_time()
             -- Heal
             gamemode_azazel.heal_everything()
+            -- Forward Time
+            forward_time()
             -- Transition
             level.add_pp_effector("deimos1.ppe", 210410, false)
 
@@ -216,11 +216,13 @@ function save_position(stash_data)
     sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
     sleep.level_vert = db.actor:level_vertex_id()
     sleep.game_vert = db.actor:game_vertex_id()
-    level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
+    if stash_data then
+        level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
+    end
 end
 
 function actor_on_sleep()
-    if sleep.stash_created ~= true then
+    if sleep.stash_created == false then
         print_dbg("SET POSITION on SLEEP")
         sleep.sleep_created = true;
         save_position()

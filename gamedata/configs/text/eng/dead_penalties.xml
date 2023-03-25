@@ -35,4 +35,9 @@
 	<string id="ui_mcm_dead_penalties_min_condition_lose_desc">
 		<text>Min condition to lose on all equiped items upon death. Cannot be equals or greater than Max Condition</text>
 	</string>
+
+	<string id="ui_mcm_dead_penalties_enable_time_forward">
+		<text>Enable the skip of time after death [BETA]</text>
+	</string>
+
 </string_table>
