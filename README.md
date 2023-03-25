@@ -1,7 +1,7 @@
 # dead_penalties
 S.T.A.L.K.E.R G.A.M.M.A Addon
 
- I'm putting together a mod based on the idea of having some "penalties" when dying, not exactly like ironman because it's not a full progress restart, I have been thinking about something like this for some time and Klean's' idea of a hideout aka EFT and drop a backpack with your items when dying and I dived in. I have found some mods but no one had everything I wanted. This is my first time modding so I used Minecraft_Respawn code as a baseline for the project, so thanks to RavenAscendant for that. (https://www.moddb.com/mods/stalker-anomaly/addons/minecraft-respawn)
+ I'm putting together a mod based on the idea of having some "penalties" when dying, not exactly like ironman because it's not a full progress restart, I have been thinking about something like this for some time and Klean's idea of a hideout aka EFT and drop a backpack with your items when dying made me dive into it. I have found some mods but no one had everything I wanted. This is my first time modding so I used Minecraft_Respawn code as a baseline for the project, so thanks to RavenAscendant for that.  (https://www.moddb.com/mods/stalker-anomaly/addons/minecraft-respawn)
 
 Changelog:
 - v0.2
