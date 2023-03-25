@@ -1,5 +1,8 @@
+local mcd_id = "dead_penalties"
+
 function on_mcm_load()
-    op = { id= "dead_penalties",sh=true ,gr={
+    op = { id= mcd_id,sh=true ,gr={
+            {id = mcd_id,                               type = "slide", link = "ui_options_slider_player", text = "ui_mcm_menu_" .. mcd_id, size = {512, 50}, spacing = 20},
 			{id = "max_money_percentage",               type = "track", val = 2, min=0.01, max=1.00, step=0.01, def = 0.65},
             {id = "max_money_to_drop_percentage",       type = "track", val = 2, min=0.01, max=1.00, step=0.01, def = 0.40},
             {id = "max_condition_lose",                 type = "track", val = 2, min=1,    max=100,  step=1,    def = 20},
