@@ -84,8 +84,8 @@ function actor_on_before_death(who, flags)
     end
     print_dbg("actor_on_before_death %s")
 
-    bind_stalker_ext.invulnerable_time = time_global() + 10000
-    bind_stalker_ext.respawn_invulnerable_time = time_global() + 10000
+    -- bind_stalker_ext.invulnerable_time = time_global() + 10000
+    -- bind_stalker_ext.respawn_invulnerable_time = time_global() + 10000
     print_dbg("actor_on_before_death previous %s", last_death_time)
     if last_death_time < current_time then
         last_death_time = current_time + 10000
@@ -100,7 +100,7 @@ function actor_on_before_death(who, flags)
         level.disable_input()
         get_console():execute("hud_draw off")
         respawn_done = true
-        gamemode_azazel.heal_everything()
+        -- db.actor:set_health_ex(1)
         if not currently_respawning then
             print_dbg("currently_respawning if NOT %s", currently_respawning)
             drop_stash()
@@ -193,7 +193,7 @@ function actor_on_before_death(who, flags)
     db.actor.radiation = 0
     db.actor.satiety = global_satiety
     db.actor.power = global_power
-
+    print_dbg("actor satiety %s", db.actor:cast_Actor():conditions():GetSatiety())
     arszi_psy.set_psy_health(1)
     print_dbg("db.actor.health %s", db.actor.health)
     flags.ret_value = false
