@@ -103,15 +103,6 @@ function actor_on_before_death(who, flags)
             drop_stash()
             currently_respawning = 1
         end
-
-        if currently_respawning == 1 then
-            print_dbg("currently_respawning if 1 %s", currently_respawning)
-            -- set_health()
-            -- forward_time(p)
-            -- teleport()
-
-            currently_respawning = 2
-        end
         --- Forward Time ---
         local forwardTimeMinHours = 1
         local forwardTimeMaxHours = 36
@@ -154,7 +145,7 @@ function actor_on_before_death(who, flags)
             end
         end
 
-        if currently_respawning == 2 then
+        if currently_respawning == 1 then
             print_dbg("currently_respawning if 2 %s", currently_respawning)
             if enable_time_forward then
                 xr_effects.forward_game_time(nil, nil, p)
@@ -163,18 +154,16 @@ function actor_on_before_death(who, flags)
                                                   " Minutes")
                 db.actor:give_game_news("Severe Injured", forward_text, "ui_inGame2_neutral_2_mask", 0, 20000)
             end
-            currently_respawning = 3
+            currently_respawning = 2
         end
 
-        if currently_respawning == 3 then
-            currently_respawning = 4
+        if currently_respawning == 2 then
+            currently_respawning = 3
             print_dbg("currently_respawning if 3 %s", currently_respawning)
             bind_stalker_ext.respawn_new_health = healing
             global_healing = healing
             global_satiety = satiety
             global_power = power
-
-            currently_respawning = nil
         end
         get_console():execute("hud_draw on")
         level.enable_input()
