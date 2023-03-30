@@ -74,9 +74,6 @@ end
 
 function actor_on_before_death(who, flags)
     local current_time = time_global()
-    if last_death_time > current_time then
-        goto exit
-    end
     if not (sleep.level and sleep.position.x and sleep.position.y and sleep.position.z) then
         print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y,
             sleep.position.z, sleep.level_vert, sleep.game_vert)
@@ -100,7 +97,7 @@ function actor_on_before_death(who, flags)
         level.disable_input()
         get_console():execute("hud_draw off")
         respawn_done = true
-        -- db.actor:set_health_ex(1)
+        db.actor:set_health_ex(1)
         if not currently_respawning then
             print_dbg("currently_respawning if NOT %s", currently_respawning)
             drop_stash()
@@ -197,7 +194,6 @@ function actor_on_before_death(who, flags)
     arszi_psy.set_psy_health(1)
     print_dbg("db.actor.health %s", db.actor.health)
     flags.ret_value = false
-    ::exit::
 end
 
 keep_items = nil
