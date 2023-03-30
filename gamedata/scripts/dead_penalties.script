@@ -103,6 +103,15 @@ function actor_on_before_death(who, flags)
             drop_stash()
             currently_respawning = 1
         end
+
+        if currently_respawning == 1 then
+            print_dbg("currently_respawning if 1 %s", currently_respawning)
+            -- set_health()
+            -- forward_time(p)
+            -- teleport()
+
+            currently_respawning = 2
+        end
         --- Forward Time ---
         local forwardTimeMinHours = 1
         local forwardTimeMaxHours = 36
@@ -145,15 +154,6 @@ function actor_on_before_death(who, flags)
             end
         end
 
-        if currently_respawning == 1 then
-            print_dbg("currently_respawning if 1 %s", currently_respawning)
-            -- set_health()
-            -- forward_time(p)
-            teleport()
-
-            currently_respawning = 2
-        end
-
         if currently_respawning == 2 then
             print_dbg("currently_respawning if 2 %s", currently_respawning)
             if enable_time_forward then
@@ -169,7 +169,6 @@ function actor_on_before_death(who, flags)
         if currently_respawning == 3 then
             currently_respawning = 4
             print_dbg("currently_respawning if 3 %s", currently_respawning)
-            
             bind_stalker_ext.respawn_new_health = healing
             global_healing = healing
             global_satiety = satiety
@@ -278,7 +277,6 @@ function drop_stash()
                 end
                 print_dbg("SLEEP before itr_inv")
                 db.actor:iterate_inventory(itr_inv)
-                -- teleport()
                 return true
             end
             return false
@@ -381,4 +379,60 @@ end
 function load_state(mdata)
     sleep = mdata.RAX_sleep_location or sleep
     sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
+end
+
+function on_tutor_gameover_respawn()
+    if stash_data then
+        level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
+    end
+    currently_respawning = nil
+    -- Test fix for bleeding after respawning
+    db.actor.bleeding = 1
+    if sleep.level and sleep.position and sleep.level_vert and sleep.game_vert then
+        local player_vector_x = sleep.posX -- _g.se_load_var("respawn_mode_gepardas", "sleep_player_vector", "sleep_player_vector")
+        local player_vector_y = sleep.posY
+        local player_vector_z = sleep.posZ
+        local player_lvid = db.actor:level_vertex_id() -- g.se_load_var("respawn_mode_gepardas", "sleep_player_lvid", "sleep_player_lvid")
+        local player_gvid = db.actor:game_vertex_id() -- g.se_load_var("respawn_mode_gepardas", "sleep_player_gvid", "sleep_player_gvid")
+        -- alife_storage_manager.get_state().respawn_mod_gepardas = respawn_mod
+        xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
+            player_gvid, VEC_ZERO, true)
+    end
+    if db.actor:character_community() == "actor_stalker" then -- if loner >>
+        xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
+
+    elseif db.actor:character_community() == "actor_army" then -- if military >>
+        xr_effects.change_level_now(vector():set(-123.26, -28.4, -379.96), 133511, 450, VEC_ZERO, true) -- southern checkpoint
+
+    elseif db.actor:character_community() == "actor_bandit" then -- if bandit >>
+        xr_effects.change_level_now(vector():set(20.72, 7.85, -42.93), 189149, 1515, VEC_ZERO, true) -- northern factory
+
+    elseif db.actor:character_community() == "actor_csky" then -- if clear sky >>
+        xr_effects.change_level_now(vector():set(-140.56, 1.5, -317.99), 75660, 136, VEC_ZERO, true) -- hidden base
+
+    elseif db.actor:character_community() == "actor_dolg" then -- if duty >>
+        xr_effects.change_level_now(vector():set(229.09, -5.449, 128.31), 59298, 1704, VEC_ZERO, true) -- duty headquarter
+
+    elseif db.actor:character_community() == "actor_ecolog" then -- if ecologist >>
+        xr_effects.change_level_now(vector():set(28.96, -10.05, -280.12), 78646, 2281, VEC_ZERO, true) -- sakharovs bunker
+
+    elseif db.actor:character_community() == "actor_freedom" then -- if freedom >>
+        xr_effects.change_level_now(vector():set(-18.02, -2.46, -31.74), 274912, 2092, VEC_ZERO, true) -- military base
+
+    elseif db.actor:character_community() == "actor_killer" then -- if mercenary >>
+        xr_effects.change_level_now(vector():set(-56.6, 8.92, 37.57), 96425, 2367, VEC_ZERO, true) -- sports center
+
+    elseif db.actor:character_community() == "actor_monolith" then -- if monolith >>
+        xr_effects.change_level_now(vector():set(-3.59, -3.50, 189.80), 98087, 3069, VEC_ZERO, true) -- cultural center
+
+    elseif db.actor:character_community() == "actor_monolith" then -- if sin >>
+        xr_effects.change_level_now(vector():set(-152.36056518555, 2.2933793067932, -26.791021347046), 5570, 2772,
+            VEC_ZERO, true) -- red forest old mine
+
+    elseif db.actor:character_community() == "actor_monolith" then -- if renegade >>
+        xr_effects.change_level_now(vector():set(-179.78, 4.13, 417.23), 52100, 80, VEC_ZERO, true) -- tuzla outpost
+
+    else -- if unisg/ other >>
+        xr_effects.change_level_now(vector():set(136.32, 28.9, 240.395), 348892, 4920, VEC_ZERO, true) -- hideout in outskirts
+    end
 end
