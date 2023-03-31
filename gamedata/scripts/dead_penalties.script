@@ -190,8 +190,6 @@ function actor_on_before_death(who, flags)
 
         if currently_respawning == 3 then
             currently_respawning = 4
-            pos = db.actor:position()
-            db.actor:set_actor_position(vector():set(pos.x + 10, pos.y, pos.z))
         end
 
         if currently_respawning == 4 then
@@ -200,9 +198,10 @@ function actor_on_before_death(who, flags)
             global_healing = healing
             global_satiety = satiety
             global_power = power
-            db.actor:give_game_news("Recovery", tostring(
-                "You feel better " .. global_healing * 100 .. "% of health " .. global_satiety * 100 .. "% Satiety"),
-                "ui_inGame2_neutral_2_mask", 0, 20000)
+            db.actor:give_game_news("Recovery",
+                tostring("You feel better " .. math.floor(global_healing * 100 + 0.5) .. "% of health " ..
+                             math.floor(global_satiety * 100 + 0.5) .. "% Satiety"), "ui_inGame2_neutral_2_mask", 0,
+                20000)
             currently_respawning = nil
         end
 
