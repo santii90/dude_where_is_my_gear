@@ -135,8 +135,8 @@ function actor_on_before_death(who, flags)
             currently_respawning = 2
         end
         --- Forward Time ---
-        local forwardTimeMinHours = 1
-        local forwardTimeMaxHours = 36
+        local forwardTimeMinHours = 8
+        local forwardTimeMaxHours = 72
         local p = {}
         p[1] = math.random(forwardTimeMinHours, forwardTimeMaxHours)
         p[2] = math.random(0, 59)
@@ -200,7 +200,9 @@ function actor_on_before_death(who, flags)
             global_healing = healing
             global_satiety = satiety
             global_power = power
-
+            db.actor:give_game_news("Recovery", tostring(
+                "You feel better " .. global_healing * 100 .. "% of health " .. global_satiety * 100 .. "% Satiety"),
+                "ui_inGame2_neutral_2_mask", 0, 20000)
             currently_respawning = nil
         end
 
@@ -263,7 +265,8 @@ function drop_stash()
             value = 10
         }}
 
-        local money_left = math.random(0, math.floor(money_to_lose * max_money_to_drop_percentage))
+        local money_left = math.random(math.floor(money_to_lose * 0.15),
+            math.floor(money_to_lose * max_money_to_drop_percentage))
 
         for _, denom in ipairs(denominations) do
             local num_items_to_create = math.floor(money_left / denom.value)
