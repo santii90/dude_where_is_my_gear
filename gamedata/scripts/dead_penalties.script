@@ -90,13 +90,6 @@ function actor_on_before_death(who, flags)
     end
     print_dbg("actor_on_before_death %s")
 
-    bind_stalker_ext.invulnerable_time = time_global() + 85000
-    CreateTimeEvent("always_0_rads", "always_0_rads", 85000, function()
-        if db.actor then
-            db.actor.radiation = 0
-        end
-    end)
-    bind_stalker_ext.respawn_invulnerable_time = time_global() + 85000
     print_dbg("actor_on_before_death previous %s", last_death_time)
     if last_death_time < current_time then
         last_death_time = current_time + 10000
@@ -107,7 +100,6 @@ function actor_on_before_death(who, flags)
     print_dbg("time_global %s", current_time)
     print_dbg("is last_death_time < time_global %s", last_death_time < current_time)
     print_dbg("last_death_time %s", last_death_time)
-    -- db.actor:set_health_ex(1)
     if last_death_time > current_time and not respawn_done then
         print_dbg("entro IF")
         -- level.disable_input()
