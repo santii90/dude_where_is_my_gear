@@ -21,6 +21,16 @@ local sleep = {
     stash_created = false,
     sleep_created = false
 }
+local fullHealChance = 10
+local fullSatietyChance = 25 -- %Chance for player to not have any hunger after death
+local mealChance = 0.35 -- %Chance for meals, calculation still in very early stages, max value is 1!!
+local currently_respawning = nil
+local last_death_time = 0
+local respawn_done = false
+local global_healing = 1
+local global_satiety = 1
+local global_power = 1
+local invulnerability = false
 
 function load_settings()
     max_money_percentage = Dead_penalties_mcm.get_config("max_money_percentage")
@@ -42,17 +52,12 @@ function on_game_start()
     RegisterScriptCallback("actor_on_stash_create", actor_on_stash_create)
     RegisterScriptCallback("actor_on_stash_remove", actor_on_stash_remove)
     RegisterScriptCallback("on_game_load", on_game_load)
+    RegisterScriptCallback("actor_on_before_hit", actor_on_before_hit)
 end
 
 function on_game_load()
-    if sleep.dead then
-        sleep.dead = false
-        bind_stalker_ext.invulnerable_time = time_global() + 30000
-        gamemode_azazel.heal_everything()
-
-        -- Transition
-        level.add_pp_effector("deimos1.ppe", 210410, false)
-    end
+    UnregisterScriptCallback("actor_on_before_death", actor_on_before_death)
+    RegisterScriptCallback("actor_on_before_death", actor_on_before_death)
 end
 
 function print_dbg(text, ...)
@@ -61,18 +66,162 @@ function print_dbg(text, ...)
     end
 end
 
+function actor_on_before_hit(shit, bone_id, flag)
+    local current_time = time_global()
+    local sleep = alife_storage_manager.get_state().dead_penalties
+    if sleep.last_death_time then
+        local invulnerable_time = sleep.last_death_time + 85000
+        if invulnerable_time < current_time then
+            return
+        end
+        if invulnerable_time > current_time and shit.type == 3 then
+            shit.power = 0
+            db.actor.radiation = 0
+        end
+    end
+end
+
 function actor_on_before_death(who, flags)
+    local current_time = time_global()
     if not (sleep.level and sleep.position.x and sleep.position.y and sleep.position.z) then
         print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y,
             sleep.position.z, sleep.level_vert, sleep.game_vert)
         return
     end
-    bind_stalker_ext.invulnerable_time = time_global() + 30000
-    flags.ret_value = false
-    db.actor:set_health_ex(1)
-    if not sleep.dead then
-        drop_stash()
+    print_dbg("actor_on_before_death %s")
+
+    print_dbg("actor_on_before_death previous %s", last_death_time)
+    if last_death_time < current_time then
+        last_death_time = current_time + 10000
+        respawn_done = false
+        sleep.last_death_time = last_death_time
+        alife_storage_manager.get_state().dead_penalties = sleep
     end
+    print_dbg("time_global %s", current_time)
+    print_dbg("is last_death_time < time_global %s", last_death_time < current_time)
+    print_dbg("last_death_time %s", last_death_time)
+    if last_death_time > current_time and not respawn_done then
+        print_dbg("entro IF")
+        -- level.disable_input()
+        -- get_console():execute("hud_draw off")
+        respawn_done = true
+        db.actor:set_health_ex(1)
+        if not currently_respawning then
+            print_dbg("currently_respawning if NOT %s", currently_respawning)
+            drop_stash()
+            currently_respawning = 1
+        end
+
+        if currently_respawning == 1 then
+            print_dbg("currently_respawning if 1 %s", currently_respawning)
+
+            level.disable_input()
+            get_console():execute("hud_draw off")
+
+            _G.mus_vol = get_console():get_float("snd_volume_music")
+            _G.amb_vol = get_console():get_float("snd_volume_eff")
+
+            level.add_cam_effector("camera_effects\\surge_02.anm", 444, false,
+                "dead_penalties.on_tutor_gameover_respawn")
+            level.add_pp_effector("actor_death.ppe", 445, false)
+            level.add_pp_effector("rcom_actor_death_quick.ppe", 446, false)
+            local function draw_hud()
+                level.enable_input()
+                get_console():execute("hud_draw on")
+                return true
+            end
+            CreateTimeEvent("respawn_mode_draw_hud", "draw_hud", 2, draw_hud)
+
+            currently_respawning = 2
+        end
+        --- Forward Time ---
+        local forwardTimeMinHours = 8
+        local forwardTimeMaxHours = 72
+        local p = {}
+        p[1] = math.random(forwardTimeMinHours, forwardTimeMaxHours)
+        p[2] = math.random(0, 59)
+        -- Heal player--
+        local healing = 0.25
+        local satiety = 1
+        local mealVal = 0.1
+        local satiety_minus_per_hour = 0.02
+        local power = math.random(3, 10) / 10
+        if math.random(1, 100) <= fullHealChance then
+            healing = 1
+        else
+            -- Heal player depending on how much time was spent being down/knocked out
+            healing = healing + (0.007 * p[1]) + (0.00011 * p[2])
+        end
+        if healing > 1 then
+            healing = 1
+        end
+        -- Satiety calculation--
+        if math.random(1, 100) <= fullSatietyChance then
+            satiety = 1
+        else
+            -- Logic: actor can get a meal every 6 hours 
+            if satiety_minus_per_hour * p[1] >= satiety then
+                satiety = 0.2
+            else
+                satiety = satiety - (satiety_minus_per_hour * p[1])
+            end
+            local additionalFood = math.random(1, 80) / 1000
+            local totalFood = p[1] / 6
+            local foodWithChance = totalFood * mealChance
+            satiety = satiety + (foodWithChance * mealVal) + additionalFood
+            if satiety > 1 then
+                satiety = 1
+            elseif satiety < 0.2 then
+                satiety = 0.2
+            end
+        end
+
+        if currently_respawning == 2 then
+            print_dbg("currently_respawning if 2 %s", currently_respawning)
+            if enable_time_forward then
+                xr_effects.forward_game_time(nil, nil, p)
+                -- level.change_game_time(0, p[1], 0)
+                local forward_text = tostring("You have been out of action for " .. p[1] .. " Hours and " .. p[2] ..
+                                                  " Minutes")
+                db.actor:give_game_news("Severe Injured", forward_text, "ui_inGame2_neutral_2_mask", 0, 20000)
+            end
+            currently_respawning = 3
+        end
+
+        if currently_respawning == 3 then
+            currently_respawning = 4
+        end
+
+        if currently_respawning == 4 then
+            print_dbg("currently_respawning if 3 %s", currently_respawning)
+            bind_stalker_ext.respawn_new_health = healing
+            global_healing = healing
+            global_satiety = satiety
+            global_power = power
+            db.actor:give_game_news("Recovery",
+                tostring("You feel better " .. math.floor(global_healing * 100 + 0.5) .. "% of health " ..
+                             math.floor(global_satiety * 100 + 0.5) .. "% Satiety"), "ui_inGame2_neutral_2_mask", 0,
+                20000)
+            currently_respawning = nil
+        end
+
+        -- get_console():execute("hud_draw on")
+        -- level.enable_input()
+    end
+    print_dbg("healing %s", global_healing)
+    print_dbg("power %s", global_power)
+    print_dbg("satiety %s", global_satiety)
+    db.actor.health = global_healing
+    -- db.actor:set_health_ex(global_healing)
+    db.actor.bleeding = 1
+    db.actor.psy_health = 1
+    db.actor.radiation = 0
+    db.actor.satiety = global_satiety
+    db.actor.power = global_power
+    print_dbg("actor satiety %s", db.actor:cast_Actor():conditions():GetSatiety())
+    arszi_psy.set_psy_health(1)
+    print_dbg("db.actor.health %s", db.actor.health)
+    flags.ret_value = false
 end
 
 keep_items = nil
@@ -115,7 +264,8 @@ function drop_stash()
             value = 10
         }}
 
-        local money_left = math.random(0, math.floor(money_to_lose * max_money_to_drop_percentage))
+        local money_left = math.random(math.floor(money_to_lose * 0.15),
+            math.floor(money_to_lose * max_money_to_drop_percentage))
 
         for _, denom in ipairs(denominations) do
             local num_items_to_create = math.floor(money_left / denom.value)
@@ -131,7 +281,7 @@ function drop_stash()
             local obj = level.object_by_id(id)
             if (obj) then
                 local function itr_inv(temp, item)
-                    print_dbg("item: %s", item:section())
+                    -- print_dbg("item: %s", item:section())
                     if not (ignore_items[item:section()]) then
                         if (item and item:id() ~= b_id and keep_items[item:section()] == nil) then
                             -- if (IsAmmo(item) ~= true) or (item_backpack.is_ammo_for_wpn(item:section()) ~= true) then
@@ -157,7 +307,6 @@ function drop_stash()
                 end
                 print_dbg("SLEEP before itr_inv")
                 db.actor:iterate_inventory(itr_inv)
-                teleport()
                 return true
             end
             return false
@@ -167,18 +316,21 @@ function drop_stash()
     end
 end
 
---- Forward Time ---
-local forwardTimeMinHours = 6
-local forwardTimeMaxHours = 72
-function forward_time()
+function forward_time(p)
     if enable_time_forward then
-        local p = {}
-        p[1] = math.random(forwardTimeMinHours, forwardTimeMaxHours)
-        p[2] = math.random(0, 59)
         xr_effects.forward_game_time(nil, nil, p)
         local forward_text = tostring("You have been out of action for " .. p[1] .. " Hours and " .. p[2] .. " Minutes")
         db.actor:give_game_news("Severe Injured", forward_text, "ui_inGame2_neutral_2_mask", 0, 20000)
     end
+end
+
+function set_health()
+    db.actor.health = 0.7
+    db.actor.bleeding = 1
+    db.actor.psy_health = 1
+    db.actor.radiation = 0
+    db.actor.satiety = 0.8
+    db.actor.power = 1.0
 end
 
 function teleport()
@@ -189,9 +341,9 @@ function teleport()
         if (sleep.level == level.name()) then
             print_dbg("SLEEP enter tele2")
             -- Heal
-            gamemode_azazel.heal_everything()
+            -- gamemode_azazel.heal_everything()
             -- Forward Time
-            forward_time()
+            -- forward_time()
             -- Transition
             level.add_pp_effector("deimos1.ppe", 210410, false)
 
@@ -207,6 +359,7 @@ function teleport()
 end
 
 function save_position(stash_data)
+    sleep = alife_storage_manager.get_state().dead_penalties or {}
     pos = db.actor:position()
     print_dbg("SAVE POSITION %s| %s %s %s |", level.name(), pos.x, pos.y, pos.z)
     sleep.level = level.name()
@@ -216,6 +369,8 @@ function save_position(stash_data)
     sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
     sleep.level_vert = db.actor:level_vertex_id()
     sleep.game_vert = db.actor:game_vertex_id()
+
+    alife_storage_manager.get_state().dead_penalties = sleep
     if stash_data then
         level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
     end
@@ -257,4 +412,63 @@ end
 function load_state(mdata)
     sleep = mdata.RAX_sleep_location or sleep
     sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
+end
+
+function on_tutor_gameover_respawn()
+    local sleep = alife_storage_manager.get_state().dead_penalties or sleep
+    currently_respawning = nil
+    -- Test fix for bleeding after respawning
+    db.actor.bleeding = 1
+    db.actor:change_radiation(0)
+    print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
+        sleep.level_vert, sleep.game_vert)
+    if (sleep.level ~= level.name()) then
+        print_dbg("SLEEP enter tele3")
+        ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
+    elseif sleep and sleep.posX then
+        local player_vector_x = sleep.posX -- _g.se_load_var("respawn_mode_gepardas", "sleep_player_vector", "sleep_player_vector")
+        local player_vector_y = sleep.posY
+        local player_vector_z = sleep.posZ
+        local player_lvid = db.actor:level_vertex_id() -- g.se_load_var("respawn_mode_gepardas", "sleep_player_lvid", "sleep_player_lvid")
+        local player_gvid = db.actor:game_vertex_id() -- g.se_load_var("respawn_mode_gepardas", "sleep_player_gvid", "sleep_player_gvid")
+        -- alife_storage_manager.get_state().respawn_mod_gepardas = respawn_mod
+        xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
+            player_gvid, VEC_ZERO, true)
+    elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
+        xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
+
+    elseif db.actor:character_community() == "actor_army" then -- if military >>
+        xr_effects.change_level_now(vector():set(-123.26, -28.4, -379.96), 133511, 450, VEC_ZERO, true) -- southern checkpoint
+
+    elseif db.actor:character_community() == "actor_bandit" then -- if bandit >>
+        xr_effects.change_level_now(vector():set(20.72, 7.85, -42.93), 189149, 1515, VEC_ZERO, true) -- northern factory
+
+    elseif db.actor:character_community() == "actor_csky" then -- if clear sky >>
+        xr_effects.change_level_now(vector():set(-140.56, 1.5, -317.99), 75660, 136, VEC_ZERO, true) -- hidden base
+
+    elseif db.actor:character_community() == "actor_dolg" then -- if duty >>
+        xr_effects.change_level_now(vector():set(229.09, -5.449, 128.31), 59298, 1704, VEC_ZERO, true) -- duty headquarter
+
+    elseif db.actor:character_community() == "actor_ecolog" then -- if ecologist >>
+        xr_effects.change_level_now(vector():set(28.96, -10.05, -280.12), 78646, 2281, VEC_ZERO, true) -- sakharovs bunker
+
+    elseif db.actor:character_community() == "actor_freedom" then -- if freedom >>
+        xr_effects.change_level_now(vector():set(-18.02, -2.46, -31.74), 274912, 2092, VEC_ZERO, true) -- military base
+
+    elseif db.actor:character_community() == "actor_killer" then -- if mercenary >>
+        xr_effects.change_level_now(vector():set(-56.6, 8.92, 37.57), 96425, 2367, VEC_ZERO, true) -- sports center
+
+    elseif db.actor:character_community() == "actor_monolith" then -- if monolith >>
+        xr_effects.change_level_now(vector():set(-3.59, -3.50, 189.80), 98087, 3069, VEC_ZERO, true) -- cultural center
+
+    elseif db.actor:character_community() == "actor_monolith" then -- if sin >>
+        xr_effects.change_level_now(vector():set(-152.36056518555, 2.2933793067932, -26.791021347046), 5570, 2772,
+            VEC_ZERO, true) -- red forest old mine
+
+    elseif db.actor:character_community() == "actor_monolith" then -- if renegade >>
+        xr_effects.change_level_now(vector():set(-179.78, 4.13, 417.23), 52100, 80, VEC_ZERO, true) -- tuzla outpost
+
+    else -- if unisg/ other >>
+        xr_effects.change_level_now(vector():set(136.32, 28.9, 240.395), 348892, 4920, VEC_ZERO, true) -- hideout in outskirts
+    end
 end
