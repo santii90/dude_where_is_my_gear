@@ -30,6 +30,7 @@ local respawn_done = false
 local global_healing = 1
 local global_satiety = 1
 local global_power = 1
+local invulnerability = false
 
 function load_settings()
     max_money_percentage = Dead_penalties_mcm.get_config("max_money_percentage")
@@ -51,24 +52,32 @@ function on_game_start()
     RegisterScriptCallback("actor_on_stash_create", actor_on_stash_create)
     RegisterScriptCallback("actor_on_stash_remove", actor_on_stash_remove)
     RegisterScriptCallback("on_game_load", on_game_load)
+    RegisterScriptCallback("actor_on_before_hit", actor_on_before_hit)
 end
 
 function on_game_load()
     UnregisterScriptCallback("actor_on_before_death", actor_on_before_death)
     RegisterScriptCallback("actor_on_before_death", actor_on_before_death)
-    if sleep.dead then
-        sleep.dead = false
-        bind_stalker_ext.invulnerable_time = time_global() + 30000
-        gamemode_azazel.heal_everything()
-
-        -- Transition
-        level.add_pp_effector("deimos1.ppe", 210410, false)
-    end
 end
 
 function print_dbg(text, ...)
     if true then
         printf("RAX: | %s |  " .. text, time_global(), ...)
+    end
+end
+
+function actor_on_before_hit(shit, bone_id, flag)
+    local current_time = time_global()
+    local sleep = alife_storage_manager.get_state().dead_penalties
+    if sleep.last_death_time then
+        local invulnerable_time = sleep.last_death_time + 85000
+        if invulnerable_time < current_time then
+            return
+        end
+        if invulnerable_time > current_time and shit.type == 3 then
+            shit.power = 0
+            db.actor.radiation = 0
+        end
     end
 end
 
@@ -81,12 +90,19 @@ function actor_on_before_death(who, flags)
     end
     print_dbg("actor_on_before_death %s")
 
-    -- bind_stalker_ext.invulnerable_time = time_global() + 10000
-    -- bind_stalker_ext.respawn_invulnerable_time = time_global() + 10000
+    bind_stalker_ext.invulnerable_time = time_global() + 85000
+    CreateTimeEvent("always_0_rads", "always_0_rads", 85000, function()
+        if db.actor then
+            db.actor.radiation = 0
+        end
+    end)
+    bind_stalker_ext.respawn_invulnerable_time = time_global() + 85000
     print_dbg("actor_on_before_death previous %s", last_death_time)
     if last_death_time < current_time then
         last_death_time = current_time + 10000
         respawn_done = false
+        sleep.last_death_time = last_death_time
+        alife_storage_manager.get_state().dead_penalties = sleep
     end
     print_dbg("time_global %s", current_time)
     print_dbg("is last_death_time < time_global %s", last_death_time < current_time)
@@ -94,14 +110,37 @@ function actor_on_before_death(who, flags)
     -- db.actor:set_health_ex(1)
     if last_death_time > current_time and not respawn_done then
         print_dbg("entro IF")
-        level.disable_input()
-        get_console():execute("hud_draw off")
+        -- level.disable_input()
+        -- get_console():execute("hud_draw off")
         respawn_done = true
         db.actor:set_health_ex(1)
         if not currently_respawning then
             print_dbg("currently_respawning if NOT %s", currently_respawning)
             drop_stash()
             currently_respawning = 1
+        end
+
+        if currently_respawning == 1 then
+            print_dbg("currently_respawning if 1 %s", currently_respawning)
+
+            level.disable_input()
+            get_console():execute("hud_draw off")
+
+            _G.mus_vol = get_console():get_float("snd_volume_music")
+            _G.amb_vol = get_console():get_float("snd_volume_eff")
+
+            level.add_cam_effector("camera_effects\\surge_02.anm", 444, false,
+                "dead_penalties.on_tutor_gameover_respawn")
+            level.add_pp_effector("actor_death.ppe", 445, false)
+            level.add_pp_effector("rcom_actor_death_quick.ppe", 446, false)
+            local function draw_hud()
+                level.enable_input()
+                get_console():execute("hud_draw on")
+                return true
+            end
+            CreateTimeEvent("respawn_mode_draw_hud", "draw_hud", 2, draw_hud)
+
+            currently_respawning = 2
         end
         --- Forward Time ---
         local forwardTimeMinHours = 1
@@ -145,7 +184,7 @@ function actor_on_before_death(who, flags)
             end
         end
 
-        if currently_respawning == 1 then
+        if currently_respawning == 2 then
             print_dbg("currently_respawning if 2 %s", currently_respawning)
             if enable_time_forward then
                 xr_effects.forward_game_time(nil, nil, p)
@@ -154,25 +193,33 @@ function actor_on_before_death(who, flags)
                                                   " Minutes")
                 db.actor:give_game_news("Severe Injured", forward_text, "ui_inGame2_neutral_2_mask", 0, 20000)
             end
-            currently_respawning = 2
+            currently_respawning = 3
         end
 
-        if currently_respawning == 2 then
-            currently_respawning = 3
+        if currently_respawning == 3 then
+            currently_respawning = 4
+            pos = db.actor:position()
+            db.actor:set_actor_position(vector():set(pos.x + 10, pos.y, pos.z))
+        end
+
+        if currently_respawning == 4 then
             print_dbg("currently_respawning if 3 %s", currently_respawning)
             bind_stalker_ext.respawn_new_health = healing
             global_healing = healing
             global_satiety = satiety
             global_power = power
+
+            currently_respawning = nil
         end
-        get_console():execute("hud_draw on")
-        level.enable_input()
+
+        -- get_console():execute("hud_draw on")
+        -- level.enable_input()
     end
     print_dbg("healing %s", global_healing)
     print_dbg("power %s", global_power)
     print_dbg("satiety %s", global_satiety)
-    -- db.actor.health = global_healing
-    db.actor:set_health_ex(global_healing)
+    db.actor.health = global_healing
+    -- db.actor:set_health_ex(global_healing)
     db.actor.bleeding = 1
     db.actor.psy_health = 1
     db.actor.radiation = 0
@@ -318,6 +365,7 @@ function teleport()
 end
 
 function save_position(stash_data)
+    sleep = alife_storage_manager.get_state().dead_penalties or {}
     pos = db.actor:position()
     print_dbg("SAVE POSITION %s| %s %s %s |", level.name(), pos.x, pos.y, pos.z)
     sleep.level = level.name()
@@ -327,6 +375,8 @@ function save_position(stash_data)
     sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
     sleep.level_vert = db.actor:level_vertex_id()
     sleep.game_vert = db.actor:game_vertex_id()
+
+    alife_storage_manager.get_state().dead_penalties = sleep
     if stash_data then
         level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
     end
@@ -371,13 +421,17 @@ function load_state(mdata)
 end
 
 function on_tutor_gameover_respawn()
-    if stash_data then
-        level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
-    end
+    local sleep = alife_storage_manager.get_state().dead_penalties or sleep
     currently_respawning = nil
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
-    if sleep.level and sleep.position and sleep.level_vert and sleep.game_vert then
+    db.actor:change_radiation(0)
+    print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
+        sleep.level_vert, sleep.game_vert)
+    if (sleep.level ~= level.name()) then
+        print_dbg("SLEEP enter tele3")
+        ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
+    elseif sleep and sleep.posX then
         local player_vector_x = sleep.posX -- _g.se_load_var("respawn_mode_gepardas", "sleep_player_vector", "sleep_player_vector")
         local player_vector_y = sleep.posY
         local player_vector_z = sleep.posZ
@@ -386,8 +440,7 @@ function on_tutor_gameover_respawn()
         -- alife_storage_manager.get_state().respawn_mod_gepardas = respawn_mod
         xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
             player_gvid, VEC_ZERO, true)
-    end
-    if db.actor:character_community() == "actor_stalker" then -- if loner >>
+    elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
         xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
 
     elseif db.actor:character_community() == "actor_army" then -- if military >>
