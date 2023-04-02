@@ -69,7 +69,7 @@ end
 function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
     local sleep = alife_storage_manager.get_state().dead_penalties
-    if sleep.last_death_time then
+    if sleep and sleep.last_death_time then
         local invulnerable_time = sleep.last_death_time + 85000
         if invulnerable_time < current_time then
             return
@@ -88,9 +88,6 @@ function actor_on_before_death(who, flags)
             sleep.position.z, sleep.level_vert, sleep.game_vert)
         return
     end
-    print_dbg("actor_on_before_death %s")
-
-    print_dbg("actor_on_before_death previous %s", last_death_time)
     if last_death_time < current_time then
         last_death_time = current_time + 10000
         respawn_done = false
@@ -101,9 +98,6 @@ function actor_on_before_death(who, flags)
     print_dbg("is last_death_time < time_global %s", last_death_time < current_time)
     print_dbg("last_death_time %s", last_death_time)
     if last_death_time > current_time and not respawn_done then
-        print_dbg("entro IF")
-        -- level.disable_input()
-        -- get_console():execute("hud_draw off")
         respawn_done = true
         db.actor:set_health_ex(1)
         if not currently_respawning then
@@ -342,8 +336,6 @@ function teleport()
             print_dbg("SLEEP enter tele2")
             -- Heal
             -- gamemode_azazel.heal_everything()
-            -- Forward Time
-            -- forward_time()
             -- Transition
             level.add_pp_effector("deimos1.ppe", 210410, false)
 
@@ -397,11 +389,11 @@ end
 
 -- NOT WORKING, NEED TO FIGURE OUT ANOTHER APPROACH
 function actor_on_save()
-    print_dbg("ON SAVE | %s %s", sleep.stash_created, sleep.sleep_created)
-    if sleep.stash_created == false and sleep.sleep_created == false then
-        print_dbg("SET POSITION on SAVE")
-        save_position()
-    end
+    -- print_dbg("ON SAVE | %s %s", sleep.stash_created, sleep.sleep_created)
+    -- if sleep.stash_created == false and sleep.sleep_created == false then
+    --     print_dbg("SET POSITION on SAVE")
+    --     save_position()
+    -- end
 end
 
 function save_state(mdata)
@@ -419,19 +411,17 @@ function on_tutor_gameover_respawn()
     currently_respawning = nil
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
-    db.actor:change_radiation(0)
     print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
         sleep.level_vert, sleep.game_vert)
     if (sleep.level ~= level.name()) then
         print_dbg("SLEEP enter tele3")
         ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
     elseif sleep and sleep.posX then
-        local player_vector_x = sleep.posX -- _g.se_load_var("respawn_mode_gepardas", "sleep_player_vector", "sleep_player_vector")
+        local player_vector_x = sleep.posX
         local player_vector_y = sleep.posY
         local player_vector_z = sleep.posZ
-        local player_lvid = db.actor:level_vertex_id() -- g.se_load_var("respawn_mode_gepardas", "sleep_player_lvid", "sleep_player_lvid")
-        local player_gvid = db.actor:game_vertex_id() -- g.se_load_var("respawn_mode_gepardas", "sleep_player_gvid", "sleep_player_gvid")
-        -- alife_storage_manager.get_state().respawn_mod_gepardas = respawn_mod
+        local player_lvid = db.actor:level_vertex_id()
+        local player_gvid = db.actor:game_vertex_id()
         xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
             player_gvid, VEC_ZERO, true)
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
