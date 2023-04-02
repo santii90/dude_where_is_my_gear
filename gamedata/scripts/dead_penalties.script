@@ -19,7 +19,8 @@ local sleep = {
     game_vert = false,
     dead = false,
     stash_created = false,
-    sleep_created = false
+    sleep_created = false,
+    last_death_time = 0
 }
 local fullHealChance = 10
 local fullSatietyChance = 25 -- %Chance for player to not have any hunger after death
@@ -83,12 +84,8 @@ end
 
 function actor_on_before_death(who, flags)
     local current_time = time_global()
-    if not (sleep.level and sleep.position.x and sleep.position.y and sleep.position.z) then
-        print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y,
-            sleep.position.z, sleep.level_vert, sleep.game_vert)
-        return
-    end
     if last_death_time < current_time then
+        print_dbg("set_last_death_time %s")
         last_death_time = current_time + 10000
         respawn_done = false
         sleep.last_death_time = last_death_time
@@ -108,7 +105,7 @@ function actor_on_before_death(who, flags)
 
         if currently_respawning == 1 then
             print_dbg("currently_respawning if 1 %s", currently_respawning)
-
+            
             level.disable_input()
             get_console():execute("hud_draw off")
 
@@ -413,7 +410,7 @@ function on_tutor_gameover_respawn()
     db.actor.bleeding = 1
     print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
         sleep.level_vert, sleep.game_vert)
-    if (sleep.level ~= level.name()) then
+    if sleep and sleep.level and (sleep.level ~= level.name()) then
         print_dbg("SLEEP enter tele3")
         ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
     elseif sleep and sleep.posX then
