@@ -16,6 +16,7 @@ local lose_item_condition
 local keep_equipped_guns_chance
 local keep_equipped_outfit_chance
 local chance_of_losing_items
+local campfire_save
 local sleep = {
     level = false,
     position = false,
@@ -34,7 +35,6 @@ local global_satiety = 1
 local global_power = 1
 local invulnerability = false
 
-
 function load_settings()
     max_money_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_percentage")
     max_money_to_drop_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_to_drop_percentage")
@@ -49,6 +49,7 @@ function load_settings()
     full_satiety_chance = Dude_where_is_my_gear_mcm.get_config("full_satiety_chance")
     meal_chance = Dude_where_is_my_gear_mcm.get_config("meal_chance")
     chance_of_losing_items = Dude_where_is_my_gear_mcm.get_config("chance_of_losing_items")
+    campfire_save = Dude_where_is_my_gear_mcm.get_config("campfire_save")
 end
 
 function on_game_start()
@@ -64,6 +65,7 @@ function on_game_start()
     RegisterScriptCallback("actor_on_stash_remove", actor_on_stash_remove)
     RegisterScriptCallback("on_game_load", on_game_load)
     RegisterScriptCallback("actor_on_before_hit", actor_on_before_hit)
+    RegisterScriptCallback("on_before_save_input", on_before_save_input)
     -- sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
 end
 
@@ -170,7 +172,7 @@ function actor_on_before_death(who, flags)
             end
             local additionalFood = math.random(1, 80) / 1000
             local totalFood = p[1] / 6
-            local foodWithChance = totalFood * (meal_chance/100)
+            local foodWithChance = totalFood * (meal_chance / 100)
             satiety = satiety + (foodWithChance * mealVal) + additionalFood
             if satiety > 1 then
                 satiety = 1
@@ -232,6 +234,7 @@ function drop_stash()
     local actor = db.actor
     local se_obj = alife_create("inv_backpack", actor:position(), actor:level_vertex_id(), actor:game_vertex_id())
     local ignore_items = {
+        ["itm_pda_common"] = true,
         ["device_pda_1"] = true,
         ["device_pda_2"] = true,
         ["device_pda_3"] = true,
@@ -277,7 +280,6 @@ function drop_stash()
         end
 
         print_dbg("Total money to lose: " .. money_to_lose)
-
         local function transfer_items(id)
             local obj = level.object_by_id(id)
             if (obj) then
@@ -286,7 +288,7 @@ function drop_stash()
                     if not (ignore_items[item:section()]) then
                         if (item and item:id() ~= b_id and keep_items[item:section()] == nil) then
                             if (ini_sys:r_bool_ex(item:section(), "quest_item", false) == false) then
-                                local is_losing_item = math.random(1,100) >= chance_of_losing_items
+                                local is_keeping_item = math.random(1, 100) >= chance_of_losing_items
                                 if (item_backpack.is_in_slot(item) == true) then
                                     -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
                                     if lose_item_condition then
@@ -313,7 +315,7 @@ function drop_stash()
                                             print_dbg("keep_equipped_outfit_chance")
                                             db.actor:transfer_item(item, obj)
                                         end
-                                    elseif is_losing_item then
+                                    elseif not is_keeping_item then
                                         alife_release(item)
                                     else
                                         db.actor:transfer_item(item, obj)
@@ -322,7 +324,7 @@ function drop_stash()
                                     if math.random(1, 100) >= keep_equipped_guns_ammo_chance then
                                         db.actor:transfer_item(item, obj)
                                     end
-                                elseif is_losing_item then
+                                elseif not is_keeping_item then
                                     alife_release(item)
                                 else
                                     db.actor:transfer_item(item, obj)
@@ -359,7 +361,7 @@ function save_position(stash_data)
     sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
     sleep.level_vert = db.actor:level_vertex_id()
     sleep.game_vert = db.actor:game_vertex_id()
-    
+
     if stash_data then
         sleep.stash_created = true
         sleep.type = "stash"
@@ -405,6 +407,16 @@ function actor_on_save()
     -- end
 end
 
+function on_before_save_input(flags, typ_, text)
+    if not campfire_save then
+        local error_message = strformat("Campfire save not allowed.", text)
+        -- always prevent saving.
+        exec_console_cmd("main_menu off")
+        flags.ret = true
+        actor_menu.set_msg(1, error_message, 4)
+
+    end
+end
 function save_state(mdata)
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 
@@ -422,9 +434,9 @@ function on_tutor_gameover_respawn()
     db.actor.bleeding = 1
     print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
         sleep.level_vert, sleep.game_vert)
-    if sleep and sleep.level and (sleep.level ~= level.name()) and sleep.stash_created and sleep.sleep_created then
+    if sleep and sleep.level and (sleep.level ~= level.name()) and sleep.stash_created or sleep.sleep_created then
         ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
-    elseif sleep and sleep.posX and sleep.stash_created and sleep.sleep_created then
+    elseif sleep and sleep.posX and sleep.stash_created or sleep.sleep_created then
         local player_vector_x = sleep.posX
         local player_vector_y = sleep.posY
         local player_vector_z = sleep.posZ

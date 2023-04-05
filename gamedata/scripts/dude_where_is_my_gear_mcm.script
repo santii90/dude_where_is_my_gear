@@ -14,8 +14,9 @@ function on_mcm_load()
 			{id = "full_heal_chance",                   type = "track", val = 2, min=1,    max=100,  step=1,    def = 10},
 			{id = "full_satiety_chance",                type = "track", val = 2, min=1,    max=100,  step=1,    def = 25},
 			{id = "meal_chance",                        type = "track", val = 2, min=1,    max=100,  step=1,    def = 25},
-			{id = "chance_of_losing_items",             type = "track", val = 2, min=0,    max=100,  step=1,    def = 10},
+			{id = "chance_of_losing_items",             type = "track", val = 2, min=0,    max=100,  step=1,    def = 20},
             {id = "enable_time_forward",                type = "check", val = 1, def = true},
+            {id = "campfire_save",                      type = "check", val = 1, def = true},
 		}
     }
     return op
@@ -33,9 +34,10 @@ local defaults = {
     ["full_heal_chance"] = 10,
     ["full_satiety_chance"] = 25,
     ["meal_chance"] = 25,
-    ["chance_of_losing_items"] = 10,
+    ["chance_of_losing_items"] = 20,
     ["enable_time_forward"] = true,
     ["lose_item_condition"] = true,
+    ["campfire_save"] = true,
 }
     
 function get_config(key)
