@@ -12,6 +12,13 @@ local max_money_to_drop_percentage
 local max_condition_lose
 local min_condition_lose
 local enable_time_forward
+local full_heal_chance
+local full_satiety_chance
+local meal_chance
+local keep_equipped_guns_ammo_chance
+local lose_item_condition
+local keep_equipped_guns_chance
+local keep_equipped_outfit_chance
 local sleep = {
     level = false,
     position = false,
@@ -19,11 +26,9 @@ local sleep = {
     game_vert = false,
     dead = false,
     stash_created = false,
-    sleep_created = false
+    sleep_created = false,
+    last_death_time = 0
 }
-local fullHealChance = 10
-local fullSatietyChance = 25 -- %Chance for player to not have any hunger after death
-local mealChance = 0.35 -- %Chance for meals, calculation still in very early stages, max value is 1!!
 local currently_respawning = nil
 local last_death_time = 0
 local respawn_done = false
@@ -32,12 +37,20 @@ local global_satiety = 1
 local global_power = 1
 local invulnerability = false
 
+
 function load_settings()
-    max_money_percentage = Dead_penalties_mcm.get_config("max_money_percentage")
-    max_money_to_drop_percentage = Dead_penalties_mcm.get_config("max_money_to_drop_percentage")
-    max_condition_lose = Dead_penalties_mcm.get_config("max_condition_lose")
-    min_condition_lose = Dead_penalties_mcm.get_config("min_condition_lose")
-    enable_time_forward = Dead_penalties_mcm.get_config("enable_time_forward")
+    max_money_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_percentage")
+    max_money_to_drop_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_to_drop_percentage")
+    max_condition_lose = Dude_where_is_my_gear_mcm.get_config("max_condition_lose")
+    min_condition_lose = Dude_where_is_my_gear_mcm.get_config("min_condition_lose")
+    enable_time_forward = Dude_where_is_my_gear_mcm.get_config("enable_time_forward")
+    keep_equipped_guns_ammo_chance = Dude_where_is_my_gear_mcm.get_config("keep_equipped_guns_ammo_chance")
+    lose_item_condition = Dude_where_is_my_gear_mcm.get_config("lose_item_condition")
+    keep_equipped_guns_chance = Dude_where_is_my_gear_mcm.get_config("keep_equipped_guns_chance")
+    keep_equipped_outfit_chance = Dude_where_is_my_gear_mcm.get_config("keep_equipped_outfit_chance")
+    full_heal_chance = Dude_where_is_my_gear_mcm.get_config("full_heal_chance")
+    full_satiety_chance = Dude_where_is_my_gear_mcm.get_config("full_satiety_chance")
+    meal_chance = Dude_where_is_my_gear_mcm.get_config("meal_chance")
 end
 
 function on_game_start()
@@ -68,7 +81,7 @@ end
 
 function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
-    local sleep = alife_storage_manager.get_state().dead_penalties
+    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear
     if sleep and sleep.last_death_time then
         local invulnerable_time = sleep.last_death_time + 85000
         if invulnerable_time < current_time then
@@ -83,16 +96,12 @@ end
 
 function actor_on_before_death(who, flags)
     local current_time = time_global()
-    if not (sleep.level and sleep.position.x and sleep.position.y and sleep.position.z) then
-        print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y,
-            sleep.position.z, sleep.level_vert, sleep.game_vert)
-        return
-    end
     if last_death_time < current_time then
+        print_dbg("set_last_death_time %s")
         last_death_time = current_time + 10000
         respawn_done = false
         sleep.last_death_time = last_death_time
-        alife_storage_manager.get_state().dead_penalties = sleep
+        alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     end
     print_dbg("time_global %s", current_time)
     print_dbg("is last_death_time < time_global %s", last_death_time < current_time)
@@ -116,7 +125,7 @@ function actor_on_before_death(who, flags)
             _G.amb_vol = get_console():get_float("snd_volume_eff")
 
             level.add_cam_effector("camera_effects\\surge_02.anm", 444, false,
-                "dead_penalties.on_tutor_gameover_respawn")
+                "dude_where_is_my_gear.on_tutor_gameover_respawn")
             level.add_pp_effector("actor_death.ppe", 445, false)
             level.add_pp_effector("rcom_actor_death_quick.ppe", 446, false)
             local function draw_hud()
@@ -140,7 +149,7 @@ function actor_on_before_death(who, flags)
         local mealVal = 0.1
         local satiety_minus_per_hour = 0.02
         local power = math.random(3, 10) / 10
-        if math.random(1, 100) <= fullHealChance then
+        if math.random(1, 100) <= full_heal_chance then
             healing = 1
         else
             -- Heal player depending on how much time was spent being down/knocked out
@@ -150,7 +159,7 @@ function actor_on_before_death(who, flags)
             healing = 1
         end
         -- Satiety calculation--
-        if math.random(1, 100) <= fullSatietyChance then
+        if math.random(1, 100) <= full_satiety_chance then
             satiety = 1
         else
             -- Logic: actor can get a meal every 6 hours 
@@ -161,7 +170,7 @@ function actor_on_before_death(who, flags)
             end
             local additionalFood = math.random(1, 80) / 1000
             local totalFood = p[1] / 6
-            local foodWithChance = totalFood * mealChance
+            local foodWithChance = totalFood * (meal_chance/100)
             satiety = satiety + (foodWithChance * mealVal) + additionalFood
             if satiety > 1 then
                 satiety = 1
@@ -275,27 +284,47 @@ function drop_stash()
             local obj = level.object_by_id(id)
             if (obj) then
                 local function itr_inv(temp, item)
-                    -- print_dbg("item: %s", item:section())
+                    print_dbg("item: %s", item:section())
                     if not (ignore_items[item:section()]) then
                         if (item and item:id() ~= b_id and keep_items[item:section()] == nil) then
-                            -- if (IsAmmo(item) ~= true) or (item_backpack.is_ammo_for_wpn(item:section()) ~= true) then
                             if (ini_sys:r_bool_ex(item:section(), "quest_item", false) == false) then
                                 if (item_backpack.is_in_slot(item) == true) then
                                     -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
-                                    local condition = item:condition()
-                                    local condition_reduction =
-                                        math.random(min_condition_lose, max_condition_lose) / 100
-                                    condition = condition - condition_reduction
-                                    if (condition < 0) then
-                                        condition = 0
+                                    if lose_item_condition then
+                                        local condition = item:condition()
+                                        local condition_reduction =
+                                            math.random(min_condition_lose, max_condition_lose) / 100
+                                        condition = condition - condition_reduction
+                                        if (condition < 0) then
+                                            condition = 0
+                                        end
+                                        item:set_condition(condition)
                                     end
-                                    item:set_condition(condition)
-                                    db.actor:transfer_item(item, obj)
+                                    if IsPistol(item) then
+                                        print_dbg("IsPistol")
+                                    elseif IsWeapon(item) then
+                                        print_dbg("IsWeapon")
+                                        if math.random(1, 100) >= keep_equipped_guns_chance then
+                                            print_dbg("keep_equipped_guns_chance")
+                                            db.actor:transfer_item(item, obj)
+                                        end
+                                    elseif IsOutfit(item) or IsHeadgear(item) then
+                                        print_dbg("IsOutfit")
+                                        if math.random(1, 100) >= keep_equipped_outfit_chance then
+                                            print_dbg("keep_equipped_outfit_chance")
+                                            db.actor:transfer_item(item, obj)
+                                        end
+                                    else
+                                        db.actor:transfer_item(item, obj)
+                                    end
+                                elseif item_backpack.is_ammo_for_wpn(item:section()) == true then
+                                    if math.random(1, 100) >= keep_equipped_guns_ammo_chance then
+                                        db.actor:transfer_item(item, obj)
+                                    end
                                 else
                                     db.actor:transfer_item(item, obj)
                                 end
                             end
-                            -- end
                         end
                     end
                 end
@@ -351,7 +380,7 @@ function teleport()
 end
 
 function save_position(stash_data)
-    sleep = alife_storage_manager.get_state().dead_penalties or {}
+    sleep = alife_storage_manager.get_state().dude_where_is_my_gear or {}
     pos = db.actor:position()
     print_dbg("SAVE POSITION %s| %s %s %s |", level.name(), pos.x, pos.y, pos.z)
     sleep.level = level.name()
@@ -362,7 +391,7 @@ function save_position(stash_data)
     sleep.level_vert = db.actor:level_vertex_id()
     sleep.game_vert = db.actor:game_vertex_id()
 
-    alife_storage_manager.get_state().dead_penalties = sleep
+    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     if stash_data then
         level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
     end
@@ -407,13 +436,13 @@ function load_state(mdata)
 end
 
 function on_tutor_gameover_respawn()
-    local sleep = alife_storage_manager.get_state().dead_penalties or sleep
+    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     currently_respawning = nil
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
     print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
         sleep.level_vert, sleep.game_vert)
-    if (sleep.level ~= level.name()) then
+    if sleep and sleep.level and (sleep.level ~= level.name()) then
         print_dbg("SLEEP enter tele3")
         ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
     elseif sleep and sleep.posX then

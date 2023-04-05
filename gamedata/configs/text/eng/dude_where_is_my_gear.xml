@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+    <string id="ui_mcm_menu_dude_where_is_my_gear">
+		<text>Dude where's my gear?</text>
+	</string>
+
+    <string id="ui_mcm_dude_where_is_my_gear_max_money_percentage">
+		<text>Max percentage of money that can be lost.</text>
+	</string>
+	<string id="ui_mcm_dude_where_is_my_gear_max_money_percentage_desc">
+		<text>This dictates the max pecentage of money that will be removed from your balance</text>
+	</string>
+
+    <string id="ui_mcm_dude_where_is_my_gear_max_money_to_drop_percentage">
+		<text>Max percentage of money that can be dropped.</text>
+	</string>
+    
+	<string id="ui_mcm_dude_where_is_my_gear_max_money_to_drop_percentage_desc">
+		<text>Max percentage of money that will be added to the drop backpack from the lost money.</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_lose_item_condition">
+		<text>Enable condition lose of eqquiped gear</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_max_condition_lose">
+		<text>Max condition to lose on all equiped items</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_max_condition_lose_desc">
+		<text>Max condition to lose on all equiped items upon death. Cannot be equals or lower than Min Condition</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_min_condition_lose">
+		<text>Min condition to lose on all equiped items</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_min_condition_lose_desc">
+		<text>Min condition to lose on all equiped items upon death. Cannot be equals or greater than Max Condition</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_keep_equipped_guns_ammo_chance">
+		<text>Chance of keeping ammo for the equipped weapons</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_keep_equipped_guns_chance">
+		<text>Chance of keeping equipped weapons</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_keep_equipped_outfit_chance">
+		<text>Chance of keeping equipped outfit and headgear</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_full_heal_chance">
+		<text>Chance of respawning with full health</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_full_satiety_chance">
+		<text>Chance of not have any hunger after death</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_meal_chance">
+		<text>Chance for meals while you are recovering</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_enable_time_forward">
+		<text>Enable the skip of time after death</text>
+	</string>
+
+</string_table>

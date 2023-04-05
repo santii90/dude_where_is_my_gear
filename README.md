@@ -4,6 +4,17 @@ S.T.A.L.K.E.R G.A.M.M.A Addon
  I'm putting together a mod based on the idea of having some "penalties" when dying, not exactly like ironman because it's not a full progress restart, I have been thinking about something like this for some time and Klean's idea of a hideout aka EFT and drop a backpack with your items when dying made me dive into it. I have found some mods but no one had everything I wanted. This is my first time modding so I used Minecraft_Respawn code as a baseline for the project, so thanks to RavenAscendant for that.  (https://www.moddb.com/mods/stalker-anomaly/addons/minecraft-respawn)
 
 Changelog:
+- v0.5.0
+    - Added all main variables to MCM options to greatly improve customization.
+    - Added a new variable to control the chance keeping equipped weapons.
+    - Added a new variable to control the chance of keeping equipped armor.
+    - Added a new variable to control the chance of keeping ammo for equipped weapons.
+    - If player have a pistol equipped, it will be kept after death.
+- v0.4.2
+    - Fix issues with initial death if never slept/created stash.
+    - GAMMA 0.9 tested.
+- v0.4.1
+    - Hotfix for fatal error when never sleeping/using a stash and dying.
 - v0.4
 	- Pass time after death (between 8 and 72 hours) revamped and stable.
 	- Added health recovery based on time passed. (with chance of being full recovery)
