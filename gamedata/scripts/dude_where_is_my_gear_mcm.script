@@ -8,12 +8,13 @@ function on_mcm_load()
             {id = "lose_item_condition",                type = "check", val = 1, def = true},
             {id = "max_condition_lose",                 type = "track", val = 2, min=1,    max=100,  step=1,    def = 20},
 			{id = "min_condition_lose",                 type = "track", val = 2, min=1,    max=100,  step=1,    def = 2},
-			{id = "keep_equipped_guns_ammo_chance",     type = "track", val = 2, min=0,    max=100,  step=1,    def = 5},
+			{id = "keep_equipped_guns_ammo_chance",     type = "track", val = 2, min=0,    max=100,  step=1,    def = 45},
 			{id = "keep_equipped_guns_chance",          type = "track", val = 2, min=0,    max=100,  step=1,    def = 5},
 			{id = "keep_equipped_outfit_chance",        type = "track", val = 2, min=0,    max=100,  step=1,    def = 5},
 			{id = "full_heal_chance",                   type = "track", val = 2, min=1,    max=100,  step=1,    def = 10},
 			{id = "full_satiety_chance",                type = "track", val = 2, min=1,    max=100,  step=1,    def = 25},
 			{id = "meal_chance",                        type = "track", val = 2, min=1,    max=100,  step=1,    def = 25},
+			{id = "chance_of_losing_items",             type = "track", val = 2, min=0,    max=100,  step=1,    def = 10},
             {id = "enable_time_forward",                type = "check", val = 1, def = true},
 		}
     }
@@ -23,15 +24,16 @@ end
 -- If you don't use MCM, change your defaults from here.
 local defaults = {
     ["max_money_percentage"] = 0.65, 
-    ["max_money_to_drop_percentage"] = 0.55,
+    ["max_money_to_drop_percentage"] = 0.40,
     ["max_condition_lose"] = 20,
     ["min_condition_lose"] = 2,
-    ["keep_equipped_guns_ammo_chance"] = 60,
+    ["keep_equipped_guns_ammo_chance"] = 45,
     ["keep_equipped_guns_chance"] = 5,
     ["keep_equipped_outfit_chance"] = 5,
     ["full_heal_chance"] = 10,
     ["full_satiety_chance"] = 25,
     ["meal_chance"] = 25,
+    ["chance_of_losing_items"] = 10,
     ["enable_time_forward"] = true,
     ["lose_item_condition"] = true,
 }
