@@ -25,7 +25,8 @@ local sleep = {
     dead = false,
     stash_created = false,
     sleep_created = false,
-    last_death_time = 0
+    last_death_time = 0,
+    stash_save = {}
 }
 local currently_respawning = nil
 local last_death_time = 0
@@ -354,19 +355,27 @@ function save_position(stash_data)
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     pos = db.actor:position()
     print_dbg("SAVE POSITION %s| %s %s %s |", level.name(), pos.x, pos.y, pos.z)
-    sleep.level = level.name()
-    sleep.posX = pos.x
-    sleep.posY = pos.y
-    sleep.posZ = pos.z
-    sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
-    sleep.level_vert = db.actor:level_vertex_id()
-    sleep.game_vert = db.actor:game_vertex_id()
-
     if stash_data then
+        sleep.stash_save = {}
         sleep.stash_created = true
+        sleep.stash_save.level = level.name()
+        sleep.stash_save.posX = pos.x
+        sleep.stash_save.posY = pos.y
+        sleep.stash_save.posZ = pos.z
+        sleep.stash_save.position = vector():set(sleep.stash_save.posX or 0, sleep.stash_save.posY or 0,
+            sleep.stash_save.posZ or 0)
+        sleep.stash_save.level_vert = db.actor:level_vertex_id()
+        sleep.stash_save.game_vert = db.actor:game_vertex_id()
         sleep.type = "stash"
         level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
     else
+        sleep.level = level.name()
+        sleep.posX = pos.x
+        sleep.posY = pos.y
+        sleep.posZ = pos.z
+        sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
+        sleep.level_vert = db.actor:level_vertex_id()
+        sleep.game_vert = db.actor:game_vertex_id()
         sleep.sleep_created = true
         sleep.type = "sleep"
     end
@@ -383,17 +392,16 @@ function actor_on_sleep()
     end
 end
 
-function actor_on_stash_create(data)
+function actor_on_stash_create(stash_data)
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    print_dbg("SET POSITION on STASH CREATE %s", data.stash_id)
+    print_dbg("SET POSITION on STASH CREATE %s", stash_data.stash_id)
     sleep.stash_created = true;
-    save_position(data)
+    save_position(stash_data)
 end
 
 function actor_on_stash_remove()
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     sleep.stash_created = false;
-    sleep.sleep_created = false;
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     print_dbg("STASH REMOVED, stash_created = %s", sleep.stash_created)
 end
@@ -434,16 +442,25 @@ function on_tutor_gameover_respawn()
     db.actor.bleeding = 1
     print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
         sleep.level_vert, sleep.game_vert)
-    if sleep and sleep.level and (sleep.level ~= level.name()) and sleep.stash_created or sleep.sleep_created then
-        ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
-    elseif sleep and sleep.posX and sleep.stash_created or sleep.sleep_created then
-        local player_vector_x = sleep.posX
-        local player_vector_y = sleep.posY
-        local player_vector_z = sleep.posZ
+    if sleep and (sleep.level and (sleep.level ~= level.name())) or
+        (sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) and
+        (sleep.stash_created or sleep.sleep_created) then
+        if sleep.stash_created then
+            ChangeLevel(sleep.stash_save.position, sleep.stash_save.level_vert, sleep.stash_save.game_vert, VEC_ZERO,
+                true)
+        else
+            ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
+        end
+    elseif sleep and (sleep.posX or sleep.stash_save.posX) and (sleep.stash_created or sleep.sleep_created) then
         local player_lvid = db.actor:level_vertex_id()
         local player_gvid = db.actor:game_vertex_id()
-        xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
+        if sleep.stash_created then
+            xr_effects.change_level_now(vector():set(sleep.stash_save.posX, sleep.stash_save.posY, sleep.stash_save.posZ), player_lvid,
             player_gvid, VEC_ZERO, true)
+        else
+            xr_effects.change_level_now(vector():set(sleep.posX, sleep.posY, sleep.posZ), player_lvid,
+            player_gvid, VEC_ZERO, true)
+        end          
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
         xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
 
