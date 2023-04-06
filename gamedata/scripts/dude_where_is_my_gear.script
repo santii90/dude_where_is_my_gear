@@ -325,6 +325,8 @@ function drop_stash()
                                     if math.random(1, 100) >= keep_equipped_guns_ammo_chance then
                                         db.actor:transfer_item(item, obj)
                                     end
+                                elseif string.match(item:section(), "^mag_") then
+                                    -- Partial compatibility with MagsRedux (always keep all the mags)
                                 elseif not is_keeping_item then
                                     alife_release(item)
                                 else
