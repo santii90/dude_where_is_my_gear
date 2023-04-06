@@ -17,6 +17,7 @@ local keep_equipped_guns_chance
 local keep_equipped_outfit_chance
 local chance_of_losing_items
 local campfire_save
+local always_wake_up_daytime = true
 local sleep = {
     level = false,
     position = false,
@@ -35,6 +36,7 @@ local global_healing = 1
 local global_satiety = 1
 local global_power = 1
 local invulnerability = false
+local options_vol = 1
 
 function load_settings()
     max_money_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_percentage")
@@ -51,6 +53,7 @@ function load_settings()
     meal_chance = Dude_where_is_my_gear_mcm.get_config("meal_chance")
     chance_of_losing_items = Dude_where_is_my_gear_mcm.get_config("chance_of_losing_items")
     campfire_save = Dude_where_is_my_gear_mcm.get_config("campfire_save")
+    always_wake_up_daytime = Dude_where_is_my_gear_mcm.get_config("always_wake_up_daytime")
 end
 
 function on_game_start()
@@ -67,12 +70,13 @@ function on_game_start()
     RegisterScriptCallback("on_game_load", on_game_load)
     RegisterScriptCallback("actor_on_before_hit", actor_on_before_hit)
     RegisterScriptCallback("on_before_save_input", on_before_save_input)
-    -- sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    options_vol = ui_options.get("sound/general/master_volume")
 end
 
 function on_game_load()
     UnregisterScriptCallback("actor_on_before_death", actor_on_before_death)
     RegisterScriptCallback("actor_on_before_death", actor_on_before_death)
+    exec_console_cmd("snd_volume_eff " .. options_vol)
 end
 
 function print_dbg(text, ...)
@@ -119,12 +123,11 @@ function actor_on_before_death(who, flags)
 
         if currently_respawning == 1 then
             print_dbg("currently_respawning if 1 %s", currently_respawning)
-
+            options_vol = ui_options.get("sound/general/master_volume")
             level.disable_input()
             get_console():execute("hud_draw off")
-
-            _G.mus_vol = get_console():get_float("snd_volume_music")
-            _G.amb_vol = get_console():get_float("snd_volume_eff")
+            level.add_pp_effector("concussion_bhs.ppe", 99123, false)
+            exec_console_cmd("snd_volume_eff " .. 0.01)
 
             level.add_cam_effector("camera_effects\\surge_02.anm", 444, false,
                 "dude_where_is_my_gear.on_tutor_gameover_respawn")
@@ -146,6 +149,18 @@ function actor_on_before_death(who, flags)
         local p = {}
         p[1] = math.random(forwardTimeMinHours, forwardTimeMaxHours)
         p[2] = math.random(0, 59)
+        if always_wake_up_daytime then
+            local max_wake_hour = 16
+            local min_wake_hour = 6
+            local cur_hour = level.get_time_hours()
+            local wake_hour = cur_hour + p[1]
+            local final_day_hour = ((wake_hour / 24) % 1) * 24
+            if final_day_hour < 6 then
+                p[1] = p[1] + (6 - final_day_hour)
+            elseif final_day_hour > 16 then
+                p[1] = p[1] - (final_day_hour - 16)
+            end
+        end
         -- Heal player--
         local healing = 0.25
         local satiety = 1
@@ -457,12 +472,13 @@ function on_tutor_gameover_respawn()
         local player_lvid = db.actor:level_vertex_id()
         local player_gvid = db.actor:game_vertex_id()
         if sleep.stash_created then
-            xr_effects.change_level_now(vector():set(sleep.stash_save.posX, sleep.stash_save.posY, sleep.stash_save.posZ), player_lvid,
-            player_gvid, VEC_ZERO, true)
+            xr_effects.change_level_now(
+                vector():set(sleep.stash_save.posX, sleep.stash_save.posY, sleep.stash_save.posZ), player_lvid,
+                player_gvid, VEC_ZERO, true)
         else
-            xr_effects.change_level_now(vector():set(sleep.posX, sleep.posY, sleep.posZ), player_lvid,
-            player_gvid, VEC_ZERO, true)
-        end          
+            xr_effects.change_level_now(vector():set(sleep.posX, sleep.posY, sleep.posZ), player_lvid, player_gvid,
+                VEC_ZERO, true)
+        end
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
         xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
 

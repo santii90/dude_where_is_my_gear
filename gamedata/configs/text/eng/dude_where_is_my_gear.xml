@@ -72,6 +72,10 @@
 		<text>Enable the skip of time after death</text>
 	</string>
 
+	<string id="ui_mcm_dude_where_is_my_gear_always_wake_up_daytime">
+		<text>Always wake up at daytime after death</text>
+	</string>
+
 	<string id="ui_mcm_dude_where_is_my_gear_campfire_save">
 		<text>Enable saving at campfires</text>
 	</string>
