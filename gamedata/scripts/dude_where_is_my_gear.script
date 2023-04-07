@@ -1,12 +1,8 @@
 --[[
-Death penalties is inspired by EFT, where you lose all your gear when you die.
+Dude where's my gear!? is inspired by EFT, where you lose all your gear when you die.
 The idea is to put together a hideout with some extra weapons and gear,
 still you'll have the opportunity of getting some of your gear back if you return (and survive) to the place where you died.
 You'll lose a % of money and also equipped items will lose condition when you drop them.
-
-
-I used Minecraft_Respawn code as a baseline for the project, so thanks to RavenAscendant for that.
-https://www.moddb.com/mods/stalker-anomaly/addons/minecraft-respawn
 --]] local max_money_percentage
 local max_money_to_drop_percentage
 local max_condition_lose
@@ -19,6 +15,9 @@ local keep_equipped_guns_ammo_chance
 local lose_item_condition
 local keep_equipped_guns_chance
 local keep_equipped_outfit_chance
+local chance_of_losing_items
+local campfire_save
+local always_wake_up_daytime = true
 local sleep = {
     level = false,
     position = false,
@@ -27,7 +26,8 @@ local sleep = {
     dead = false,
     stash_created = false,
     sleep_created = false,
-    last_death_time = 0
+    last_death_time = 0,
+    stash_save = {}
 }
 local currently_respawning = nil
 local last_death_time = 0
@@ -36,7 +36,7 @@ local global_healing = 1
 local global_satiety = 1
 local global_power = 1
 local invulnerability = false
-
+local options_vol = 1
 
 function load_settings()
     max_money_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_percentage")
@@ -51,6 +51,9 @@ function load_settings()
     full_heal_chance = Dude_where_is_my_gear_mcm.get_config("full_heal_chance")
     full_satiety_chance = Dude_where_is_my_gear_mcm.get_config("full_satiety_chance")
     meal_chance = Dude_where_is_my_gear_mcm.get_config("meal_chance")
+    chance_of_losing_items = Dude_where_is_my_gear_mcm.get_config("chance_of_losing_items")
+    campfire_save = Dude_where_is_my_gear_mcm.get_config("campfire_save")
+    always_wake_up_daytime = Dude_where_is_my_gear_mcm.get_config("always_wake_up_daytime")
 end
 
 function on_game_start()
@@ -66,11 +69,14 @@ function on_game_start()
     RegisterScriptCallback("actor_on_stash_remove", actor_on_stash_remove)
     RegisterScriptCallback("on_game_load", on_game_load)
     RegisterScriptCallback("actor_on_before_hit", actor_on_before_hit)
+    RegisterScriptCallback("on_before_save_input", on_before_save_input)
+    options_vol = ui_options.get("sound/general/master_volume")
 end
 
 function on_game_load()
     UnregisterScriptCallback("actor_on_before_death", actor_on_before_death)
     RegisterScriptCallback("actor_on_before_death", actor_on_before_death)
+    exec_console_cmd("snd_volume_eff " .. options_vol)
 end
 
 function print_dbg(text, ...)
@@ -81,7 +87,7 @@ end
 
 function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
-    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear
+    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     if sleep and sleep.last_death_time then
         local invulnerable_time = sleep.last_death_time + 85000
         if invulnerable_time < current_time then
@@ -117,12 +123,11 @@ function actor_on_before_death(who, flags)
 
         if currently_respawning == 1 then
             print_dbg("currently_respawning if 1 %s", currently_respawning)
-
+            options_vol = ui_options.get("sound/general/master_volume")
             level.disable_input()
             get_console():execute("hud_draw off")
-
-            _G.mus_vol = get_console():get_float("snd_volume_music")
-            _G.amb_vol = get_console():get_float("snd_volume_eff")
+            level.add_pp_effector("concussion_bhs.ppe", 99123, false)
+            exec_console_cmd("snd_volume_eff " .. 0.01)
 
             level.add_cam_effector("camera_effects\\surge_02.anm", 444, false,
                 "dude_where_is_my_gear.on_tutor_gameover_respawn")
@@ -137,12 +142,25 @@ function actor_on_before_death(who, flags)
 
             currently_respawning = 2
         end
+        -- Amazing healing and satiety calculation from Curse of Inmmortality mod by Yonte and  Mr_Gepardas	
         --- Forward Time ---
         local forwardTimeMinHours = 8
         local forwardTimeMaxHours = 72
         local p = {}
         p[1] = math.random(forwardTimeMinHours, forwardTimeMaxHours)
         p[2] = math.random(0, 59)
+        if always_wake_up_daytime then
+            local max_wake_hour = 16
+            local min_wake_hour = 6
+            local cur_hour = level.get_time_hours()
+            local wake_hour = cur_hour + p[1]
+            local final_day_hour = ((wake_hour / 24) % 1) * 24
+            if final_day_hour < 6 then
+                p[1] = p[1] + (6 - final_day_hour)
+            elseif final_day_hour > 16 then
+                p[1] = p[1] - (final_day_hour - 16)
+            end
+        end
         -- Heal player--
         local healing = 0.25
         local satiety = 1
@@ -170,7 +188,7 @@ function actor_on_before_death(who, flags)
             end
             local additionalFood = math.random(1, 80) / 1000
             local totalFood = p[1] / 6
-            local foodWithChance = totalFood * (meal_chance/100)
+            local foodWithChance = totalFood * (meal_chance / 100)
             satiety = satiety + (foodWithChance * mealVal) + additionalFood
             if satiety > 1 then
                 satiety = 1
@@ -221,9 +239,7 @@ function actor_on_before_death(who, flags)
     db.actor.radiation = 0
     db.actor.satiety = global_satiety
     db.actor.power = global_power
-    print_dbg("actor satiety %s", db.actor:cast_Actor():conditions():GetSatiety())
     arszi_psy.set_psy_health(1)
-    print_dbg("db.actor.health %s", db.actor.health)
     flags.ret_value = false
 end
 
@@ -234,6 +250,7 @@ function drop_stash()
     local actor = db.actor
     local se_obj = alife_create("inv_backpack", actor:position(), actor:level_vertex_id(), actor:game_vertex_id())
     local ignore_items = {
+        ["itm_pda_common"] = true,
         ["device_pda_1"] = true,
         ["device_pda_2"] = true,
         ["device_pda_3"] = true,
@@ -279,7 +296,6 @@ function drop_stash()
         end
 
         print_dbg("Total money to lose: " .. money_to_lose)
-
         local function transfer_items(id)
             local obj = level.object_by_id(id)
             if (obj) then
@@ -288,6 +304,7 @@ function drop_stash()
                     if not (ignore_items[item:section()]) then
                         if (item and item:id() ~= b_id and keep_items[item:section()] == nil) then
                             if (ini_sys:r_bool_ex(item:section(), "quest_item", false) == false) then
+                                local is_keeping_item = math.random(1, 100) >= chance_of_losing_items
                                 if (item_backpack.is_in_slot(item) == true) then
                                     -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
                                     if lose_item_condition then
@@ -314,6 +331,8 @@ function drop_stash()
                                             print_dbg("keep_equipped_outfit_chance")
                                             db.actor:transfer_item(item, obj)
                                         end
+                                    elseif not is_keeping_item then
+                                        alife_release(item)
                                     else
                                         db.actor:transfer_item(item, obj)
                                     end
@@ -321,6 +340,10 @@ function drop_stash()
                                     if math.random(1, 100) >= keep_equipped_guns_ammo_chance then
                                         db.actor:transfer_item(item, obj)
                                     end
+                                elseif string.match(item:section(), "^mag_") then
+                                    -- Partial compatibility with MagsRedux (always keep all the mags)
+                                elseif not is_keeping_item then
+                                    alife_release(item)
                                 else
                                     db.actor:transfer_item(item, obj)
                                 end
@@ -328,13 +351,11 @@ function drop_stash()
                         end
                     end
                 end
-                print_dbg("SLEEP before itr_inv")
                 db.actor:iterate_inventory(itr_inv)
                 return true
             end
             return false
         end
-        print_dbg("SLEEP before event")
         CreateTimeEvent("RAX SleepSpawn", "actor_backpack", 0, transfer_items, se_obj.id)
     end
 end
@@ -347,72 +368,58 @@ function forward_time(p)
     end
 end
 
-function set_health()
-    db.actor.health = 0.7
-    db.actor.bleeding = 1
-    db.actor.psy_health = 1
-    db.actor.radiation = 0
-    db.actor.satiety = 0.8
-    db.actor.power = 1.0
-end
-
-function teleport()
-    print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
-        sleep.level_vert, sleep.game_vert)
-    if sleep.level and sleep.position and sleep.level_vert and sleep.game_vert then
-        print_dbg("SLEEP enter tele1")
-        if (sleep.level == level.name()) then
-            print_dbg("SLEEP enter tele2")
-            -- Heal
-            -- gamemode_azazel.heal_everything()
-            -- Transition
-            level.add_pp_effector("deimos1.ppe", 210410, false)
-
-            db.actor:set_actor_position(sleep.position)
-            sleep.dead = false
-        else
-            print_dbg("SLEEP enter tele3")
-            ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
-        end
-
-    end
-    return true
-end
-
 function save_position(stash_data)
-    sleep = alife_storage_manager.get_state().dude_where_is_my_gear or {}
+    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     pos = db.actor:position()
     print_dbg("SAVE POSITION %s| %s %s %s |", level.name(), pos.x, pos.y, pos.z)
-    sleep.level = level.name()
-    sleep.posX = pos.x
-    sleep.posY = pos.y
-    sleep.posZ = pos.z
-    sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
-    sleep.level_vert = db.actor:level_vertex_id()
-    sleep.game_vert = db.actor:game_vertex_id()
-
-    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     if stash_data then
+        sleep.stash_save = {}
+        sleep.stash_created = true
+        sleep.stash_save.level = level.name()
+        sleep.stash_save.posX = pos.x
+        sleep.stash_save.posY = pos.y
+        sleep.stash_save.posZ = pos.z
+        sleep.stash_save.position = vector():set(sleep.stash_save.posX or 0, sleep.stash_save.posY or 0,
+            sleep.stash_save.posZ or 0)
+        sleep.stash_save.level_vert = db.actor:level_vertex_id()
+        sleep.stash_save.game_vert = db.actor:game_vertex_id()
+        sleep.type = "stash"
         level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
+    else
+        sleep.level = level.name()
+        sleep.posX = pos.x
+        sleep.posY = pos.y
+        sleep.posZ = pos.z
+        sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
+        sleep.level_vert = db.actor:level_vertex_id()
+        sleep.game_vert = db.actor:game_vertex_id()
+        sleep.sleep_created = true
+        sleep.type = "sleep"
     end
+    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 end
 
 function actor_on_sleep()
-    if sleep.stash_created == false then
+    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    print_dbg("ON SLEEP | %s %s", sleep.stash_created, sleep.sleep_created)
+    if not sleep.stash_created or sleep.stash_created == false then
         print_dbg("SET POSITION on SLEEP")
         sleep.sleep_created = true;
         save_position()
     end
 end
 
-function actor_on_stash_create(data)
-    print_dbg("SET POSITION on STASH CREATE %s", data.stash_id)
+function actor_on_stash_create(stash_data)
+    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    print_dbg("SET POSITION on STASH CREATE %s", stash_data.stash_id)
     sleep.stash_created = true;
-    save_position(data)
+    save_position(stash_data)
 end
 
 function actor_on_stash_remove()
+    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     sleep.stash_created = false;
+    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     print_dbg("STASH REMOVED, stash_created = %s", sleep.stash_created)
 end
 
@@ -425,13 +432,23 @@ function actor_on_save()
     -- end
 end
 
+function on_before_save_input(flags, typ_, text)
+    if not campfire_save then
+        local error_message = strformat("Campfire save not allowed.", text)
+        -- always prevent saving.
+        exec_console_cmd("main_menu off")
+        flags.ret = true
+        actor_menu.set_msg(1, error_message, 4)
+
+    end
+end
 function save_state(mdata)
-    mdata.RAX_sleep_location = sleep
+    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 
 end
 
 function load_state(mdata)
-    sleep = mdata.RAX_sleep_location or sleep
+    sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
 end
 
@@ -442,17 +459,26 @@ function on_tutor_gameover_respawn()
     db.actor.bleeding = 1
     print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
         sleep.level_vert, sleep.game_vert)
-    if sleep and sleep.level and (sleep.level ~= level.name()) then
-        print_dbg("SLEEP enter tele3")
-        ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
-    elseif sleep and sleep.posX then
-        local player_vector_x = sleep.posX
-        local player_vector_y = sleep.posY
-        local player_vector_z = sleep.posZ
+    if sleep and (sleep.level and (sleep.level ~= level.name())) or
+        (sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) and
+        (sleep.stash_created or sleep.sleep_created) then
+        if sleep.stash_created then
+            ChangeLevel(sleep.stash_save.position, sleep.stash_save.level_vert, sleep.stash_save.game_vert, VEC_ZERO,
+                true)
+        else
+            ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
+        end
+    elseif sleep and (sleep.posX or sleep.stash_save.posX) and (sleep.stash_created or sleep.sleep_created) then
         local player_lvid = db.actor:level_vertex_id()
         local player_gvid = db.actor:game_vertex_id()
-        xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
-            player_gvid, VEC_ZERO, true)
+        if sleep.stash_created then
+            xr_effects.change_level_now(
+                vector():set(sleep.stash_save.posX, sleep.stash_save.posY, sleep.stash_save.posZ), player_lvid,
+                player_gvid, VEC_ZERO, true)
+        else
+            xr_effects.change_level_now(vector():set(sleep.posX, sleep.posY, sleep.posZ), player_lvid, player_gvid,
+                VEC_ZERO, true)
+        end
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
         xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
 
