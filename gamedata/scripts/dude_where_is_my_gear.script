@@ -478,23 +478,34 @@ function on_tutor_gameover_respawn()
     if respawn_info and (respawn_info.level and (respawn_info.level ~= level.name())) or
         (respawn_info.stash_save.level and (respawn_info.stash_save.level ~= level.name())) and
         (respawn_info.stash_created or respawn_info.sleep_created) then
-        if respawn_info.stash_created then
-            ChangeLevel(respawn_info.stash_save.position, respawn_info.stash_save.level_vert, respawn_info.stash_save.game_vert, VEC_ZERO,
-                true)
-        else
-            ChangeLevel(respawn_info.position, respawn_info.level_vert, respawn_info.game_vert, VEC_ZERO, true)
-        end
-    elseif respawn_info and (respawn_info.posX or respawn_info.stash_save.posX) and (respawn_info.stash_created or respawn_info.sleep_created) then
-        local player_lvid = db.actor:level_vertex_id()
-        local player_gvid = db.actor:game_vertex_id()
-        if respawn_info.stash_created then
-            xr_effects.change_level_now(
-                vector():set(respawn_info.stash_save.posX, respawn_info.stash_save.posY, respawn_info.stash_save.posZ), player_lvid,
+            if respawn_info.stash_created then
+                local player_vector_x = respawn_info.stash_save.posX
+                local player_vector_y = respawn_info.stash_save.posY
+                local player_vector_z = respawn_info.stash_save.posZ
+                ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), respawn_info.stash_save.level_vert, respawn_info.stash_save.game_vert, VEC_ZERO,
+                    true)
+            else
+                local player_vector_x = respawn_info.posX
+                local player_vector_y = respawn_info.posY
+                local player_vector_z = respawn_info.posZ
+                ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), respawn_info.level_vert, respawn_info.game_vert, VEC_ZERO, true)
+            end
+        elseif sleep and (respawn_info.posX or respawn_info.stash_save.posX) and (respawn_info.stash_created or respawn_info.sleep_created) then
+            local player_lvid = db.actor:level_vertex_id()
+            local player_gvid = db.actor:game_vertex_id()
+            if respawn_info.stash_created then
+                local player_vector_x = respawn_info.stash_save.posX
+                local player_vector_y = respawn_info.stash_save.posY
+                local player_vector_z = respawn_info.stash_save.posZ
+                xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
                 player_gvid, VEC_ZERO, true)
-        else
-            xr_effects.change_level_now(vector():set(respawn_info.posX, respawn_info.posY, respawn_info.posZ), player_lvid, player_gvid,
-                VEC_ZERO, true)
-        end
+            else
+                local player_vector_x = respawn_info.posX
+                local player_vector_y = respawn_info.posY
+                local player_vector_z = respawn_info.posZ
+                xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
+                player_gvid, VEC_ZERO, true)
+            end
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
         xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
 
