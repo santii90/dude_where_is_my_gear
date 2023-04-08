@@ -461,8 +461,6 @@ function on_tutor_gameover_respawn()
     db.actor.bleeding = 1
     print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
         sleep.level_vert, sleep.game_vert)
-    print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.stash_save.position.x, sleep.stash_save.position.y, sleep.stash_save.position.z,
-        sleep.stash_save.level_vert, sleep.stash_save.game_vert)
     if sleep and (sleep.level and (sleep.level ~= level.name())) or
         (sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) and
         (sleep.stash_created or sleep.sleep_created) then
