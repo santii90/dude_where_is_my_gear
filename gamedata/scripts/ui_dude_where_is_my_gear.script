@@ -1,3 +1,23 @@
+GUI = nil -- instance, don't touch
+-- function start(obj)
+-- 	if (not obj) then
+-- 		return
+-- 	end
+	
+-- 	hide_hud_inventory()
+	
+-- 	if (not GUI) then
+-- 		GUI = UICreateStash()
+-- 	end
+	
+-- 	if (GUI) and (not GUI:IsShown()) then
+-- 		GUI:ShowDialog(true)
+-- 		GUI:Reset(obj)
+		
+-- 		Register_UI("UICreateStash","item_backpack")
+-- 	end
+-- end
+
 -------------------------------------------------------------------
 -- UI 
 -------------------------------------------------------------------
@@ -9,6 +29,7 @@ function UICreateRespawnPoint:__init() super()
 end
 
 function UICreateRespawnPoint:__finalize()
+    GUI = nil
 end
 
 function UICreateRespawnPoint:InitControls()
@@ -38,8 +59,8 @@ function UICreateRespawnPoint:InitCallBacks()
 end
 
 function UICreateRespawnPoint:Reset(obj)
-	self.id = obj:id()
-	self.section = obj:section()
+	self.id = obj.stash_id
+	self.section = obj.stash_section
 	
 	self.input:SetText("")
 end
@@ -49,28 +70,28 @@ function UICreateRespawnPoint:Update()
 end
 
 function UICreateRespawnPoint:OnAccept()
-	local se_obj = alife_create("inv_backpack",db.actor:position(),db.actor:level_vertex_id(),db.actor:game_vertex_id())
+	-- local se_obj = alife_create("inv_backpack",db.actor:position(),db.actor:level_vertex_id(),db.actor:game_vertex_id())
 	if (se_obj) then
-		local txt = self.input:GetText()
-		txt = txt ~= "" and txt or strformat(game.translate_string("st_itm_stash_of_character"), db.actor:character_name())
-		level.map_add_object_spot_ser(se_obj.id, "treasure_player", txt)
-		actor_menu.set_msg(1, game.translate_string("st_stash_created"),4)
+		-- local txt = self.input:GetText()
+		-- txt = txt ~= "" and txt or strformat(game.translate_string("st_itm_stash_of_character"), db.actor:character_name())
+		-- level.map_add_object_spot_ser(se_obj.id, "treasure_player", txt)
+		-- actor_menu.set_msg(1, game.translate_string("st_stash_created"),4)
 		
-		local m_data = alife_storage_manager.get_state()
-		if not (m_data.player_created_stashes) then 
-			m_data.player_created_stashes = {}
-		end
+		-- local m_data = alife_storage_manager.get_state()
+		-- if not (m_data.player_created_stashes) then 
+		-- 	m_data.player_created_stashes = {}
+		-- end
 		
-		m_data.player_created_stashes[se_obj.id] = self.section
+		-- m_data.player_created_stashes[se_obj.id] = self.section
 
-		alife_release_id(self.id)
+		-- alife_release_id(self.id)
 		
-		local data = {
-			stash_id = se_obj.id,
-			stash_name = txt,
-			stash_section = self.section,
-		}
-		SendScriptCallback("actor_on_stash_create",data)
+		-- local data = {
+		-- 	stash_id = se_obj.id,
+		-- 	stash_name = txt,
+		-- 	stash_section = self.section,
+		-- }
+		-- SendScriptCallback("actor_on_stash_create",data)
 	end
 	self:Close()
 end
@@ -92,4 +113,30 @@ function UICreateRespawnPoint:Close()
 	self:HideDialog()
 	
 	Unregister_UI("UICreateRespawnPoint")
+end
+
+function UICreateRespawnPoint:Start(obj)
+	if (not obj) then
+		return
+	end
+	
+	hide_hud_inventory()
+	
+	if (not GUI) then
+		GUI = UICreateStash()
+	end
+	
+	if (GUI) and (not GUI:IsShown()) then
+		GUI:ShowDialog(true)
+		GUI:Reset(obj)
+		
+		Register_UI("UICreateRespawnPoint","ui_dude_where_is_my_gear")
+	end
+end
+
+function createSpawn(obj)
+    if (GUI == nil) then
+        GUI = ui_dude_where_is_my_gear.UICreateRespawnPoint()
+    end
+    GUI:Start(obj)
 end

@@ -3,7 +3,16 @@ Dude where's my gear!? is inspired by EFT, where you lose all your gear when you
 The idea is to put together a hideout with some extra weapons and gear,
 still you'll have the opportunity of getting some of your gear back if you return (and survive) to the place where you died.
 You'll lose a % of money and also equipped items will lose condition when you drop them.
---]] local max_money_percentage
+--]] 
+gc = game.translate_string
+
+local states = {
+    IDLE=1,
+    HOLDING=2,
+}
+local state = states.IDLE
+
+local max_money_percentage
 local max_money_to_drop_percentage
 local max_condition_lose
 local min_condition_lose
@@ -73,6 +82,7 @@ function on_game_start()
     RegisterScriptCallback("on_game_load", on_game_load)
     RegisterScriptCallback("actor_on_before_hit", actor_on_before_hit)
     RegisterScriptCallback("on_before_save_input", on_before_save_input)
+    RegisterScriptCallback("actor_on_item_use", actor_on_item_use)
     options_vol = ui_options.get("sound/general/master_volume")
 end
 
@@ -417,7 +427,7 @@ end
 
 function actor_on_item_use(obj)
     print_dbg("ON ITEM USE | %s", obj:section())
-	if(obj:section() == "case_item") then
+	if(obj:section() == "dwmg_placeable_respawn_case") then
         if (GUI == nil) then
             GUI = ui_dude_where_is_my_gear.UICreateRespawnPoint()
         end
@@ -438,6 +448,15 @@ function actor_on_sleep()
 end
 
 function actor_on_stash_create(stash_data)
+    print_dbg("ON STASH CREATE | %s", stash_data)
+    -- print_dbg("ON ITEM USE | %s", stash_data:section())
+    for i,v in pairs(stash_data) do
+        print_dbg("STASH DATA | %s | %s", i, v)
+    end
+	if(stash_data.stash_section == "case_item") then
+        print_dbg("STASH SECTION | %s", stash_data.stash_section)
+        ui_dude_where_is_my_gear.createSpawn(stash_data)
+    end
     local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
     print_dbg("SET POSITION on STASH CREATE %s", stash_data.stash_id)
     respawn_info.stash_created = true;
@@ -556,5 +575,49 @@ function on_tutor_gameover_respawn()
 
     else -- if unisg/ other >>
         xr_effects.change_level_now(vector():set(136.32, 28.9, 240.395), 348892, 4920, VEC_ZERO, true) -- hideout in outskirts
+    end
+end
+
+function place_item(obj)
+    return gc("ui_mcm_dude_where_is_my_gear_place_stash")
+end
+
+function func_place_item(obj)
+    print_dbg("USING ITEM TO PLACE")
+    place_obj_id = obj:id()
+    condition = obj:condition()
+    if state == states.IDLE then
+        db.actor:activate_slot(0)
+        hide_hud_inventory()
+        print_dbg("USING ITEM TO PLACE")
+        state = states.HOLDING
+        print_dbg("state=HOLDING")
+        actor_menu.set_msg(1, gc("ui_mcm_dude_where_is_my_gear_place_stash"),3)
+        phy_obj_section = ini_sys:r_string_ex(obj:section(), "placeable_section") or nil
+        if phy_obj_section == nil then
+            print_dbg("No section of physical object to place")
+        end
+
+        if disable_bbox then
+            bbox = aol_bbox.bbox_collider(0.5, 0.5, 0.5,
+                                          nil,
+                                          vector():set(0, 0.25, 0))
+        else
+            local bbox_size_str = ini_sys:r_string_ex(phy_obj_section, "bounding_box_size", "0.5,0.5,0.5")
+            local bbox_size = str_explode(bbox_size_str,",")
+            local bbox_origin_str = ini_sys:r_string_ex(phy_obj_section, "bounding_box_origin", "0,0.25,0")
+            local bbox_origin = str_explode(bbox_origin_str,",")
+            base_rot = ini_sys:r_float_ex(phy_obj_section, "base_rotation", 0) or 0
+    
+            bbox = aol_bbox.bbox_collider(tonumber(bbox_size[1]), tonumber(bbox_size[2]), tonumber(bbox_size[3]),
+                                          nil,
+                                          vector():set(tonumber(bbox_origin[1]), tonumber(bbox_origin[2]), tonumber(bbox_origin[3])),
+                                          nil,
+                                          nil,
+                                          base_rot)
+
+        end
+
+        vertical_offset = 0.1
     end
 end
