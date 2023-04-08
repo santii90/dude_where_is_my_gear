@@ -126,7 +126,8 @@ function actor_on_before_death(who, flags)
             options_vol = ui_options.get("sound/general/master_volume")
             level.disable_input()
             get_console():execute("hud_draw off")
-            level.add_pp_effector("concussion_bhs.ppe", 99123, false)
+            -- Temp remove to avoid crashes for non GAMMA players
+            -- level.add_pp_effector("concussion_bhs.ppe", 99123, false)
             exec_console_cmd("snd_volume_eff " .. 0.01)
 
             level.add_cam_effector("camera_effects\\surge_02.anm", 444, false,
