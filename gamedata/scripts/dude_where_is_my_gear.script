@@ -88,7 +88,7 @@ end
 
 function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
-    local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
+    -- local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
     if respawn_info and respawn_info.last_death_time then
         local invulnerable_time = respawn_info.last_death_time + 85000
         if invulnerable_time < current_time then
@@ -108,7 +108,7 @@ function actor_on_before_death(who, flags)
         last_death_time = current_time + 10000
         respawn_done = false
         respawn_info.last_death_time = last_death_time
-        alife_storage_manager.get_state().dude_where_is_my_gear = respawn_info
+        -- alife_storage_manager.get_state().dude_where_is_my_gear = respawn_info
     end
     print_dbg("time_global %s", current_time)
     print_dbg("is last_death_time < time_global %s", last_death_time < current_time)
@@ -129,7 +129,7 @@ function actor_on_before_death(who, flags)
             get_console():execute("hud_draw off")
             -- Temp remove to avoid crashes for non GAMMA players
             -- level.add_pp_effector("concussion_bhs.ppe", 99123, false)
-            exec_console_cmd("snd_volume_eff " .. 0.01)
+            exec_console_cmd("snd_volume_eff " .. 0)
 
             level.add_cam_effector("camera_effects\\surge_02.anm", 444, false,
                 "dude_where_is_my_gear.on_tutor_gameover_respawn")
@@ -251,6 +251,18 @@ function drop_stash()
     respawn_info.dead = true
     local actor = db.actor
     local se_obj = alife_create("inv_backpack", actor:position(), actor:level_vertex_id(), actor:game_vertex_id())
+    -- Guard for old saves
+    if not respawn_info.dropped_stashes then
+        respawn_info.dropped_stashes = {}
+    elseif #respawn_info.dropped_stashes > 0 then
+        for i, stash_id in ipairs(respawn_info.dropped_stashes) do
+            if stash_id then
+                alife_release_id(stash_id)
+            end
+        end
+    end
+    table.insert(respawn_info.dropped_stashes, se_obj.id)
+    print_dbg("Dropped stash %s", se_obj.id)
     local ignore_items = {
         ["itm_pda_common"] = true,
         ["device_pda_1"] = true,
@@ -460,7 +472,9 @@ function on_tutor_gameover_respawn()
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
     print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", respawn_info.level, respawn_info.position.x, respawn_info.position.y, respawn_info.position.z,
-        respawn_info.level_vert, respawn_info.game_vert)
+    respawn_info.level_vert, respawn_info.game_vert)
+    print_dbg("STASH enter tele %s| %s %s %s |%s %s", respawn_info.stash_save.level, respawn_info.stash_save.position.x, respawn_info.stash_save.position.y, respawn_info.stash_save.position.z,
+    respawn_info.stash_save.level_vert, respawn_info.stash_save.game_vert)
     if respawn_info and (respawn_info.level and (respawn_info.level ~= level.name())) or
         (respawn_info.stash_save.level and (respawn_info.stash_save.level ~= level.name())) and
         (respawn_info.stash_created or respawn_info.sleep_created) then
