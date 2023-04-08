@@ -415,6 +415,18 @@ function save_position(stash_data)
     alife_storage_manager.get_state().dude_where_is_my_gear = respawn_info
 end
 
+function actor_on_item_use(obj)
+    print_dbg("ON ITEM USE | %s", obj:section())
+	if(obj:section() == "case_item") then
+        if (GUI == nil) then
+            GUI = ui_dude_where_is_my_gear.UICreateRespawnPoint()
+        end
+        GUI.forced = nil
+        GUI.time_track:SetCurrentValue()
+        GUI:TestAndShow(force)
+    end
+end
+
 function actor_on_sleep()
     local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
     print_dbg("ON SLEEP | %s %s", respawn_info.stash_created, respawn_info.sleep_created)

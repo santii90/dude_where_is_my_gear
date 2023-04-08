@@ -1,0 +1,32 @@
+[dwmg_placeable_respawn_case]:tch_junk
+class									= II_ATTCH
+kind								    = i_tool
+visual									= dynamics\equipments\case.ogf
+description								= dwmg_placeable_respawn_case_descr
+inv_name								= dwmg_placeable_respawn_case
+inv_name_short							= dwmg_placeable_respawn_case
+inv_grid_x								= 3
+inv_grid_y								= 1
+inv_grid_height							= 1
+inv_grid_width							= 2
+icons_texture							= ui\placeable_devices
+cost									= 3500
+inv_weight								= 4
+
+use1_functor         				    = placeable_furniture.place_item
+use1_action_functor  					= placeable_furniture.func_place_item
+
+placeable_type                          = stash
+placeable_section                       = placeable_case
+
+[placeable_case]:inv_backpack
+visual                                  = dynamics\equipments\case.ogf
+capacity                                = 50
+placeable_type                          = stash
+item_section                            = case_item
+
+base_rotation                            = -90
+bounding_box_size                        = 0.468803, 0.754316, 0.221167
+bounding_box_origin                      = 0.024616, 0.106656, 0.008215
+
+;---

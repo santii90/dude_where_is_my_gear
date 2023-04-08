@@ -1,0 +1,95 @@
+-------------------------------------------------------------------
+-- UI 
+-------------------------------------------------------------------
+class "UICreateRespawnPoint" (CUIScriptWnd)
+
+function UICreateRespawnPoint:__init() super()
+	self:InitControls()
+	self:InitCallBacks()
+end
+
+function UICreateRespawnPoint:__finalize()
+end
+
+function UICreateRespawnPoint:InitControls()
+	self:SetWndRect(Frect():set(0,0,1024,768))
+	self:SetAutoDelete(true)
+	--self:Enable(true)
+
+	local xml					= CScriptXmlInit()
+	xml:ParseFile				("ui_items_backpack.xml")
+
+	self.dialog					= xml:InitStatic("backpack", self)
+	xml:InitStatic("backpack:background", self.dialog)
+
+	self.input = xml:InitEditBox("backpack:input",self.dialog)
+	self:Register(self.input,"fld_input")
+
+	local btn = xml:Init3tButton("backpack:btn_cancel", self.dialog)
+	self:Register(btn,"btn_cancel")
+
+	btn = xml:Init3tButton("backpack:btn_ok", self.dialog)
+	self:Register(btn,"btn_ok")
+end
+
+function UICreateRespawnPoint:InitCallBacks()
+	self:AddCallback("btn_ok", ui_events.BUTTON_CLICKED, self.OnAccept, self)
+	self:AddCallback("btn_cancel", ui_events.BUTTON_CLICKED, self.Close, self)
+end
+
+function UICreateRespawnPoint:Reset(obj)
+	self.id = obj:id()
+	self.section = obj:section()
+	
+	self.input:SetText("")
+end
+
+function UICreateRespawnPoint:Update()
+	CUIScriptWnd.Update(self)
+end
+
+function UICreateRespawnPoint:OnAccept()
+	local se_obj = alife_create("inv_backpack",db.actor:position(),db.actor:level_vertex_id(),db.actor:game_vertex_id())
+	if (se_obj) then
+		local txt = self.input:GetText()
+		txt = txt ~= "" and txt or strformat(game.translate_string("st_itm_stash_of_character"), db.actor:character_name())
+		level.map_add_object_spot_ser(se_obj.id, "treasure_player", txt)
+		actor_menu.set_msg(1, game.translate_string("st_stash_created"),4)
+		
+		local m_data = alife_storage_manager.get_state()
+		if not (m_data.player_created_stashes) then 
+			m_data.player_created_stashes = {}
+		end
+		
+		m_data.player_created_stashes[se_obj.id] = self.section
+
+		alife_release_id(self.id)
+		
+		local data = {
+			stash_id = se_obj.id,
+			stash_name = txt,
+			stash_section = self.section,
+		}
+		SendScriptCallback("actor_on_stash_create",data)
+	end
+	self:Close()
+end
+
+function UICreateRespawnPoint:OnKeyboard(dik, keyboard_action)
+	local res = CUIScriptWnd.OnKeyboard(self,dik,keyboard_action)
+	if (res == false) then
+		local bind = dik_to_bind(dik)
+		if keyboard_action == ui_events.WINDOW_KEY_PRESSED then
+			if dik == DIK_keys.DIK_ESCAPE then
+				self:Close()
+			end
+		end
+	end
+	return res
+end
+
+function UICreateRespawnPoint:Close()
+	self:HideDialog()
+	
+	Unregister_UI("UICreateRespawnPoint")
+end
