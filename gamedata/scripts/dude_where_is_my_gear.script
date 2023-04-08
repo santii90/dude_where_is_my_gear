@@ -18,7 +18,7 @@ local keep_equipped_outfit_chance
 local chance_of_losing_items
 local campfire_save
 local always_wake_up_daytime = true
-local sleep = {
+local respawn_info = {
     level = false,
     position = false,
     level_vert = false,
@@ -27,7 +27,8 @@ local sleep = {
     stash_created = false,
     sleep_created = false,
     last_death_time = 0,
-    stash_save = {}
+    stash_save = {},
+    dropped_stashes ={},
 }
 local currently_respawning = nil
 local last_death_time = 0
@@ -87,9 +88,9 @@ end
 
 function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
-    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    if sleep and sleep.last_death_time then
-        local invulnerable_time = sleep.last_death_time + 85000
+    local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
+    if respawn_info and respawn_info.last_death_time then
+        local invulnerable_time = respawn_info.last_death_time + 85000
         if invulnerable_time < current_time then
             return
         end
@@ -106,8 +107,8 @@ function actor_on_before_death(who, flags)
         print_dbg("set_last_death_time %s")
         last_death_time = current_time + 10000
         respawn_done = false
-        sleep.last_death_time = last_death_time
-        alife_storage_manager.get_state().dude_where_is_my_gear = sleep
+        respawn_info.last_death_time = last_death_time
+        alife_storage_manager.get_state().dude_where_is_my_gear = respawn_info
     end
     print_dbg("time_global %s", current_time)
     print_dbg("is last_death_time < time_global %s", last_death_time < current_time)
@@ -247,7 +248,7 @@ end
 keep_items = nil
 
 function drop_stash()
-    sleep.dead = true
+    respawn_info.dead = true
     local actor = db.actor
     local se_obj = alife_create("inv_backpack", actor:position(), actor:level_vertex_id(), actor:game_vertex_id())
     local ignore_items = {
@@ -370,64 +371,64 @@ function forward_time(p)
 end
 
 function save_position(stash_data)
-    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
     pos = db.actor:position()
     print_dbg("SAVE POSITION %s| %s %s %s |", level.name(), pos.x, pos.y, pos.z)
     if stash_data then
-        sleep.stash_save = {}
-        sleep.stash_created = true
-        sleep.stash_save.level = level.name()
-        sleep.stash_save.posX = pos.x
-        sleep.stash_save.posY = pos.y
-        sleep.stash_save.posZ = pos.z
-        sleep.stash_save.position = vector():set(sleep.stash_save.posX or 0, sleep.stash_save.posY or 0,
-            sleep.stash_save.posZ or 0)
-        sleep.stash_save.level_vert = db.actor:level_vertex_id()
-        sleep.stash_save.game_vert = db.actor:game_vertex_id()
-        sleep.type = "stash"
+        respawn_info.stash_save = {}
+        respawn_info.stash_created = true
+        respawn_info.stash_save.level = level.name()
+        respawn_info.stash_save.posX = pos.x
+        respawn_info.stash_save.posY = pos.y
+        respawn_info.stash_save.posZ = pos.z
+        respawn_info.stash_save.position = vector():set(respawn_info.stash_save.posX or 0, respawn_info.stash_save.posY or 0,
+            respawn_info.stash_save.posZ or 0)
+        respawn_info.stash_save.level_vert = db.actor:level_vertex_id()
+        respawn_info.stash_save.game_vert = db.actor:game_vertex_id()
+        respawn_info.type = "stash"
         level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
     else
-        sleep.level = level.name()
-        sleep.posX = pos.x
-        sleep.posY = pos.y
-        sleep.posZ = pos.z
-        sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
-        sleep.level_vert = db.actor:level_vertex_id()
-        sleep.game_vert = db.actor:game_vertex_id()
-        sleep.sleep_created = true
-        sleep.type = "sleep"
+        respawn_info.level = level.name()
+        respawn_info.posX = pos.x
+        respawn_info.posY = pos.y
+        respawn_info.posZ = pos.z
+        respawn_info.position = vector():set(respawn_info.posX or 0, respawn_info.posY or 0, respawn_info.posZ or 0)
+        respawn_info.level_vert = db.actor:level_vertex_id()
+        respawn_info.game_vert = db.actor:game_vertex_id()
+        respawn_info.sleep_created = true
+        respawn_info.type = "respawn_info"
     end
-    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
+    alife_storage_manager.get_state().dude_where_is_my_gear = respawn_info
 end
 
 function actor_on_sleep()
-    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    print_dbg("ON SLEEP | %s %s", sleep.stash_created, sleep.sleep_created)
-    if not sleep.stash_created or sleep.stash_created == false then
+    local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
+    print_dbg("ON SLEEP | %s %s", respawn_info.stash_created, respawn_info.sleep_created)
+    if not respawn_info.stash_created or respawn_info.stash_created == false then
         print_dbg("SET POSITION on SLEEP")
-        sleep.sleep_created = true;
+        respawn_info.sleep_created = true;
         save_position()
     end
 end
 
 function actor_on_stash_create(stash_data)
-    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
     print_dbg("SET POSITION on STASH CREATE %s", stash_data.stash_id)
-    sleep.stash_created = true;
+    respawn_info.stash_created = true;
     save_position(stash_data)
 end
 
 function actor_on_stash_remove()
-    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    sleep.stash_created = false;
-    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
-    print_dbg("STASH REMOVED, stash_created = %s", sleep.stash_created)
+    local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
+    respawn_info.stash_created = false;
+    alife_storage_manager.get_state().dude_where_is_my_gear = respawn_info
+    print_dbg("STASH REMOVED, stash_created = %s", respawn_info.stash_created)
 end
 
 -- NOT WORKING, NEED TO FIGURE OUT ANOTHER APPROACH
 function actor_on_save()
-    -- print_dbg("ON SAVE | %s %s", sleep.stash_created, sleep.sleep_created)
-    -- if sleep.stash_created == false and sleep.sleep_created == false then
+    -- print_dbg("ON SAVE | %s %s", respawn_info.stash_created, respawn_info.sleep_created)
+    -- if respawn_info.stash_created == false and respawn_info.sleep_created == false then
     --     print_dbg("SET POSITION on SAVE")
     --     save_position()
     -- end
@@ -444,40 +445,40 @@ function on_before_save_input(flags, typ_, text)
     end
 end
 function save_state(mdata)
-    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
+    alife_storage_manager.get_state().dude_where_is_my_gear = respawn_info
 
 end
 
 function load_state(mdata)
-    sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
+    respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
+    respawn_info.position = vector():set(respawn_info.posX or 0, respawn_info.posY or 0, respawn_info.posZ or 0)
 end
 
 function on_tutor_gameover_respawn()
-    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
     currently_respawning = nil
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
-    print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
-        sleep.level_vert, sleep.game_vert)
-    if sleep and (sleep.level and (sleep.level ~= level.name())) or
-        (sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) and
-        (sleep.stash_created or sleep.sleep_created) then
-        if sleep.stash_created then
-            ChangeLevel(sleep.stash_save.position, sleep.stash_save.level_vert, sleep.stash_save.game_vert, VEC_ZERO,
+    print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", respawn_info.level, respawn_info.position.x, respawn_info.position.y, respawn_info.position.z,
+        respawn_info.level_vert, respawn_info.game_vert)
+    if respawn_info and (respawn_info.level and (respawn_info.level ~= level.name())) or
+        (respawn_info.stash_save.level and (respawn_info.stash_save.level ~= level.name())) and
+        (respawn_info.stash_created or respawn_info.sleep_created) then
+        if respawn_info.stash_created then
+            ChangeLevel(respawn_info.stash_save.position, respawn_info.stash_save.level_vert, respawn_info.stash_save.game_vert, VEC_ZERO,
                 true)
         else
-            ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
+            ChangeLevel(respawn_info.position, respawn_info.level_vert, respawn_info.game_vert, VEC_ZERO, true)
         end
-    elseif sleep and (sleep.posX or sleep.stash_save.posX) and (sleep.stash_created or sleep.sleep_created) then
+    elseif respawn_info and (respawn_info.posX or respawn_info.stash_save.posX) and (respawn_info.stash_created or respawn_info.sleep_created) then
         local player_lvid = db.actor:level_vertex_id()
         local player_gvid = db.actor:game_vertex_id()
-        if sleep.stash_created then
+        if respawn_info.stash_created then
             xr_effects.change_level_now(
-                vector():set(sleep.stash_save.posX, sleep.stash_save.posY, sleep.stash_save.posZ), player_lvid,
+                vector():set(respawn_info.stash_save.posX, respawn_info.stash_save.posY, respawn_info.stash_save.posZ), player_lvid,
                 player_gvid, VEC_ZERO, true)
         else
-            xr_effects.change_level_now(vector():set(sleep.posX, sleep.posY, sleep.posZ), player_lvid, player_gvid,
+            xr_effects.change_level_now(vector():set(respawn_info.posX, respawn_info.posY, respawn_info.posZ), player_lvid, player_gvid,
                 VEC_ZERO, true)
         end
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
