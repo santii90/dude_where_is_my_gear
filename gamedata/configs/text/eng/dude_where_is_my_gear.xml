@@ -84,4 +84,14 @@
 		<text>Remove not reclaimed dropped stashes when dying.</text>
 	</string>
 
+<!-- UI Related -->
+
+	<string id="ui_mcm_dude_where_is_my_gear_place_stash">
+		<text>Place New Respawn Stash</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_confirm_place_stash">
+		<text>Do you want to set a respawn point</text>
+	</string>
+
 </string_table>

@@ -13,17 +13,17 @@ icons_texture							= ui\placeable_devices
 cost									= 3500
 inv_weight								= 4
 
-use1_functor         				    = placeable_furniture.place_item
-use1_action_functor  					= placeable_furniture.func_place_item
+use1_functor         				    = dude_where_is_my_gear.place_item
+use1_action_functor  					= dude_where_is_my_gear.func_place_item
 
 placeable_type                          = stash
 placeable_section                       = placeable_case
 
-[placeable_case]:inv_backpack
+[placeable_respawn_case]:inv_backpack
 visual                                  = dynamics\equipments\case.ogf
 capacity                                = 50
 placeable_type                          = stash
-item_section                            = case_item
+item_section                            = dwmg_placeable_respawn_case
 
 base_rotation                            = -90
 bounding_box_size                        = 0.468803, 0.754316, 0.221167

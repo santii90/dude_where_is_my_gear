@@ -3,17 +3,17 @@ GUI = nil -- instance, don't touch
 -- 	if (not obj) then
 -- 		return
 -- 	end
-	
+
 -- 	hide_hud_inventory()
-	
+
 -- 	if (not GUI) then
 -- 		GUI = UICreateStash()
 -- 	end
-	
+
 -- 	if (GUI) and (not GUI:IsShown()) then
 -- 		GUI:ShowDialog(true)
 -- 		GUI:Reset(obj)
-		
+
 -- 		Register_UI("UICreateStash","item_backpack")
 -- 	end
 -- end
@@ -21,11 +21,12 @@ GUI = nil -- instance, don't touch
 -------------------------------------------------------------------
 -- UI 
 -------------------------------------------------------------------
-class "UICreateRespawnPoint" (CUIScriptWnd)
+class "UICreateRespawnPoint"(CUIScriptWnd)
 
-function UICreateRespawnPoint:__init() super()
-	self:InitControls()
-	self:InitCallBacks()
+function UICreateRespawnPoint:__init()
+    super()
+    self:InitControls()
+    self:InitCallBacks()
 end
 
 function UICreateRespawnPoint:__finalize()
@@ -33,110 +34,140 @@ function UICreateRespawnPoint:__finalize()
 end
 
 function UICreateRespawnPoint:InitControls()
-	self:SetWndRect(Frect():set(0,0,1024,768))
-	self:SetAutoDelete(true)
-	--self:Enable(true)
+    self:SetWndRect(Frect():set(0, 0, 1024, 768))
+    self:SetAutoDelete(true)
+    -- self:Enable(true)
 
-	local xml					= CScriptXmlInit()
-	xml:ParseFile				("ui_items_backpack.xml")
+    local xml = CScriptXmlInit()
+    xml:ParseFile("ui_dude_where_is_my_gear.xml")
+    self.dialog = xml:InitStatic("backpack", self)
+    xml:InitStatic("backpack:background", self.dialog)
 
-	self.dialog					= xml:InitStatic("backpack", self)
-	xml:InitStatic("backpack:background", self.dialog)
+    self.input = xml:InitEditBox("backpack:input", self.dialog)
+    self:Register(self.input, "input")
 
-	self.input = xml:InitEditBox("backpack:input",self.dialog)
-	self:Register(self.input,"fld_input")
+    local btn = xml:Init3tButton("backpack:btn_cancel", self.dialog)
+    self:Register(btn, "btn_cancel")
 
-	local btn = xml:Init3tButton("backpack:btn_cancel", self.dialog)
-	self:Register(btn,"btn_cancel")
+    self.caption = xml:InitStatic("backpack:caption", self.dialog)
+    self:Register(self.caption, "caption")
 
-	btn = xml:Init3tButton("backpack:btn_ok", self.dialog)
-	self:Register(btn,"btn_ok")
+    self.btn_pay_want_respawn = xml:Init3tButton("backpack:btn_pay_want_respawn", self.dialog)
+    self:Register(self.btn_pay_want_respawn, "btn_pay_want_respawn")
 end
 
 function UICreateRespawnPoint:InitCallBacks()
-	self:AddCallback("btn_ok", ui_events.BUTTON_CLICKED, self.OnAccept, self)
-	self:AddCallback("btn_cancel", ui_events.BUTTON_CLICKED, self.Close, self)
+    -- self:AddCallback("btn_ok", ui_events.BUTTON_CLICKED, self.OnAccept, self)
+    self:AddCallback("btn_cancel", ui_events.BUTTON_CLICKED, self.Close, self)
+    self:AddCallback("btn_pay_want_respawn", ui_events.BUTTON_CLICKED, self.OnAccept, self)
 end
 
 function UICreateRespawnPoint:Reset(obj)
-	self.id = obj.stash_id
-	self.section = obj.stash_section
-	
-	self.input:SetText("")
+    self.id = obj.stash_id
+    self.section = obj.stash_section
+
+    self.input:SetText("")
 end
 
 function UICreateRespawnPoint:Update()
-	CUIScriptWnd.Update(self)
+    CUIScriptWnd.Update(self)
 end
 
 function UICreateRespawnPoint:OnAccept()
-	-- local se_obj = alife_create("inv_backpack",db.actor:position(),db.actor:level_vertex_id(),db.actor:game_vertex_id())
-	if (se_obj) then
-		-- local txt = self.input:GetText()
-		-- txt = txt ~= "" and txt or strformat(game.translate_string("st_itm_stash_of_character"), db.actor:character_name())
-		-- level.map_add_object_spot_ser(se_obj.id, "treasure_player", txt)
-		-- actor_menu.set_msg(1, game.translate_string("st_stash_created"),4)
-		
-		-- local m_data = alife_storage_manager.get_state()
-		-- if not (m_data.player_created_stashes) then 
-		-- 	m_data.player_created_stashes = {}
-		-- end
-		
-		-- m_data.player_created_stashes[se_obj.id] = self.section
+    printf("ACCEPT")
+    -- local se_obj = alife_create("inv_backpack",db.actor:position(),db.actor:level_vertex_id(),db.actor:game_vertex_id())
+    if (se_obj) then
+        -- local txt = self.input:GetText()
+        -- txt = txt ~= "" and txt or strformat(game.translate_string("st_itm_stash_of_character"), db.actor:character_name())
+        -- level.map_add_object_spot_ser(se_obj.id, "treasure_player", txt)
+        -- actor_menu.set_msg(1, game.translate_string("st_stash_created"),4)
 
-		-- alife_release_id(self.id)
-		
-		-- local data = {
-		-- 	stash_id = se_obj.id,
-		-- 	stash_name = txt,
-		-- 	stash_section = self.section,
-		-- }
-		-- SendScriptCallback("actor_on_stash_create",data)
-	end
-	self:Close()
+        -- local m_data = alife_storage_manager.get_state()
+        -- if not (m_data.player_created_stashes) then 
+        -- 	m_data.player_created_stashes = {}
+        -- end
+
+        -- m_data.player_created_stashes[se_obj.id] = self.section
+
+        -- alife_release_id(self.id)
+
+        -- local data = {
+        -- 	stash_id = se_obj.id,
+        -- 	stash_name = txt,
+        -- 	stash_section = self.section,
+        -- }
+        -- SendScriptCallback("actor_on_stash_create",data)
+    end
+    self:Close()
 end
 
 function UICreateRespawnPoint:OnKeyboard(dik, keyboard_action)
-	local res = CUIScriptWnd.OnKeyboard(self,dik,keyboard_action)
-	if (res == false) then
-		local bind = dik_to_bind(dik)
-		if keyboard_action == ui_events.WINDOW_KEY_PRESSED then
-			if dik == DIK_keys.DIK_ESCAPE then
-				self:Close()
-			end
-		end
-	end
-	return res
+    local res = CUIScriptWnd.OnKeyboard(self, dik, keyboard_action)
+    if (res == false) then
+        local bind = dik_to_bind(dik)
+        if keyboard_action == ui_events.WINDOW_KEY_PRESSED then
+            if dik == DIK_keys.DIK_ESCAPE then
+                printf("ESC")
+                self:Close()
+            end
+        end
+    end
+    return res
 end
 
 function UICreateRespawnPoint:Close()
-	self:HideDialog()
-	
-	Unregister_UI("UICreateRespawnPoint")
+    printf("CLOSE")
+    if (self:IsShown()) then
+        self:HideDialog()
+    end
+
+    Unregister_UI("UICreateRespawnPoint")
 end
 
-function UICreateRespawnPoint:Start(obj)
-	if (not obj) then
-		return
-	end
-	
-	hide_hud_inventory()
-	
-	if (not GUI) then
-		GUI = UICreateStash()
-	end
-	
-	if (GUI) and (not GUI:IsShown()) then
-		GUI:ShowDialog(true)
-		GUI:Reset(obj)
-		
-		Register_UI("UICreateRespawnPoint","ui_dude_where_is_my_gear")
-	end
+-- function UICreateRespawnPoint:Start(obj)
+--     -- if (not obj) then
+--     --     return
+--     -- end
+
+--     hide_hud_inventory()
+
+--     if (not GUI) then
+--         GUI = UICreateRespawnPoint()
+--     end
+
+--     if (GUI) and (not GUI:IsShown()) then
+--         GUI:ShowDialog(true)
+--         GUI:Reset(obj)
+
+--         Register_UI("UICreateRespawnPoint", "ui_dude_where_is_my_gear")
+--     end
+-- end
+
+function start(obj)
+    if (not obj) then
+        return
+    end
+    -- the next block closes the inventory UI, generaly a good idea, but you could skip it.
+    local hud = get_hud()
+    if (hud) then
+        hide_hud_inventory()
+    end
+
+    if (not GUI) then
+        GUI = UICreateRespawnPoint()
+    end
+
+    if (GUI) and (not GUI:IsShown()) then
+        GUI:Reset(obj) -- or update or something to tell the GUI is is starting now. not needed if you destroy and remake every time
+        GUI:ShowDialog(true)
+        Register_UI("UICreateRespawnPoint", "ui_dude_where_is_my_gear")
+    end
 end
 
 function createSpawn(obj)
     if (GUI == nil) then
         GUI = ui_dude_where_is_my_gear.UICreateRespawnPoint()
     end
-    GUI:Start(obj)
+    -- GUI:Start(obj)
+    ui_dude_where_is_my_gear.start(obj)
 end
