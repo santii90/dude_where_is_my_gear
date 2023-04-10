@@ -138,9 +138,6 @@ function actor_on_before_death(who, flags)
         sleep.last_death_time = last_death_time
         alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     end
-    print_dbg("time_global %s", current_time)
-    print_dbg("is last_death_time < time_global %s", last_death_time < current_time)
-    print_dbg("last_death_time %s", last_death_time)
     if last_death_time > current_time and not respawn_done then
         respawn_done = true
         db.actor:set_health_ex(1)
@@ -432,7 +429,6 @@ end
 
 function actor_on_sleep()
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    print_dbg("ON SLEEP | %s %s", sleep.stash_created, sleep.sleep_created)
     if not sleep.stash_created or sleep.stash_created == false then
         print_dbg("SET POSITION on SLEEP")
         sleep.sleep_created = true;
@@ -442,7 +438,6 @@ end
 
 function actor_on_stash_create(stash_data)
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    print_dbg("SET POSITION on STASH CREATE %s", stash_data.stash_id)
     sleep.stash_created = true;
     save_position(stash_data)
 end
@@ -450,7 +445,6 @@ end
 function actor_on_stash_remove(stash_data)
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     if sleep.stash_save and (stash_data.stash_id == sleep.stash_save.stash_id) then
-        print_dbg("SET POSITION on STASH REMOVE %s", stash_data.stash_id)
         sleep.stash_created = false;
         sleep.stash_save = nil
         sleep.type = "sleep"
@@ -493,18 +487,6 @@ function on_tutor_gameover_respawn()
     currently_respawning = nil
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
-    print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.posX, sleep.position.y, sleep.position.z,
-        sleep.level_vert, sleep.game_vert)
-    for _, v in pairs(sleep) do
-        print_dbg("SLEEP enter tele %s", v)
-    end
-    if sleep.stash_save then
-        print_dbg("SLEEP enter tele stash %s| %s %s %s |%s %s", sleep.stash_save.level, sleep.stash_save.posX,
-            sleep.stash_save.posY, sleep.stash_save.posZ, sleep.stash_save.level_vert, sleep.stash_save.game_vert)
-        for _, v in pairs(sleep.stash_save) do
-            print_dbg("SLEEP enter tele stash %s", v)
-        end
-    end
     if sleep and (sleep.posX or sleep.stash_save.posX) and
         (sleep.level and (sleep.level ~= level.name())) or
         (sleep.stash_save and sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) then
