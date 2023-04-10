@@ -487,9 +487,9 @@ function on_tutor_gameover_respawn()
     currently_respawning = nil
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
-    if sleep and (sleep.posX or sleep.stash_save.posX) and
-        (sleep.level and (sleep.level ~= level.name())) or
-        (sleep.stash_save and sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) then
+    if sleep and
+        (sleep.posX and sleep.level and (sleep.level ~= level.name())) or
+        (sleep.stash_save and sleep.stash_save.posX and sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) then
         print_dbg("SAME LEVEL TELEPORT")
         if sleep.stash_created then
             local player_vector_x = sleep.stash_save.posX
@@ -503,7 +503,7 @@ function on_tutor_gameover_respawn()
             local player_vector_z = sleep.posZ
             ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
         end
-    elseif sleep and (sleep.posX or sleep.stash_save.posX)  then
+    elseif sleep and (sleep.posX or sleep.stash_save and sleep.stash_save.posX)  then
         local player_lvid = db.actor:level_vertex_id()
         local player_gvid = db.actor:game_vertex_id()
         print_dbg("DIFFERENT LEVEL TELEPORT")
