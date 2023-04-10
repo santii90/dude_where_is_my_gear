@@ -149,6 +149,18 @@ local function determine_main_cause_of_death(hits)
     return main_cause_of_death
 end
 
+local function removeValueFromArray(array, valueToRemove)
+    local newArray = {}
+    for i, v in ipairs(array) do
+        if v ~= valueToRemove then
+            table.insert(newArray, v)
+        end
+    end
+    return newArray
+end
+
+-- End of Utils
+
 function load_settings()
     max_money_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_percentage")
     max_money_to_drop_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_to_drop_percentage")
@@ -391,16 +403,16 @@ function drop_stash()
     sleep.dead = true
     local actor = db.actor
     local se_obj = alife_create("inv_backpack", actor:position(), actor:level_vertex_id(), actor:game_vertex_id())
-    if not respawn_info.dropped_stashes then
-        respawn_info.dropped_stashes = {}
-    elseif remove_previous_stash and #respawn_info.dropped_stashes > 0 then
-        for i, stash_id in ipairs(respawn_info.dropped_stashes) do
+    if not sleep.dropped_stashes then
+        sleep.dropped_stashes = {}
+    elseif remove_previous_stash and #sleep.dropped_stashes > 0 then
+        for i, stash_id in ipairs(sleep.dropped_stashes) do
             if stash_id then
                 alife_release_id(stash_id)
             end
         end
     end
-    table.insert(respawn_info.dropped_stashes, se_obj.id)
+    table.insert(sleep.dropped_stashes, se_obj.id)
     print_dbg("Dropped stash %s", se_obj.id)
     local ignore_items = {
         ["itm_pda_common"] = true,
