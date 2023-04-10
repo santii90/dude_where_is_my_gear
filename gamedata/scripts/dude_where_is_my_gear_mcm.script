@@ -18,6 +18,7 @@ function on_mcm_load()
             {id = "enable_time_forward",                type = "check", val = 1, def = true},
             {id = "always_wake_up_daytime",             type = "check", val = 1, def = false},
             {id = "campfire_save",                      type = "check", val = 1, def = true},
+            {id = "remove_previous_stash",              type = "check", val = 1, def = false},
 		}
     }
     return op
@@ -40,6 +41,7 @@ local defaults = {
     ["enable_time_forward"] = true,
     ["always_wake_up_daytime"] = true,
     ["campfire_save"] = true,
+    ["remove_previous_stash"] = false,
 }
     
 function get_config(key)
