@@ -70,6 +70,7 @@ function on_game_start()
     RegisterScriptCallback("on_game_load", on_game_load)
     RegisterScriptCallback("actor_on_before_hit", actor_on_before_hit)
     RegisterScriptCallback("on_before_save_input", on_before_save_input)
+    RegisterScriptCallback("on_key_press", on_key_press)
     options_vol = ui_options.get("sound/general/master_volume")
 end
 
@@ -89,14 +90,42 @@ function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     if sleep and sleep.last_death_time then
-        local invulnerable_time = sleep.last_death_time + 85000
+        local invulnerable_time = sleep.last_death_time + 65000
         if invulnerable_time < current_time then
             return
         end
-        if invulnerable_time > current_time and shit.type == 3 then
-            shit.power = 0
-            db.actor.radiation = 0
+        if invulnerable_time > current_time then
+            if shit.type == 3 then
+                shit.power = 0
+                db.actor.radiation = 0
+            else
+                shit.power = 0
+                db.actor.health = global_healing
+            end
+
         end
+    end
+end
+
+local direction_keys = {
+	[key_bindings.kFWD] = true,
+	[key_bindings.kBACK] = true,
+	[key_bindings.kL_STRAFE] = true,
+	[key_bindings.kR_STRAFE] = true,
+	[key_bindings.kCROUCH] = true,
+	[key_bindings.kACCEL] = true,
+    [key_bindings.kWPN_FIRE] = true,
+    [key_bindings.kWPN_ZOOM] = true,
+    [key_bindings.kL_LOOKOUT] = true,
+    [key_bindings.kR_LOOKOUT] = true,
+    [key_bindings.kJUMP] = true,
+	[7] = true,
+}
+
+function on_key_press(dik)
+    local bind = dik_to_bind(dik)
+    if direction_keys[bind] and sleep and sleep.last_death_time ~= 0 then
+        sleep.last_death_time = 0
     end
 end
 
@@ -109,9 +138,6 @@ function actor_on_before_death(who, flags)
         sleep.last_death_time = last_death_time
         alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     end
-    print_dbg("time_global %s", current_time)
-    print_dbg("is last_death_time < time_global %s", last_death_time < current_time)
-    print_dbg("last_death_time %s", last_death_time)
     if last_death_time > current_time and not respawn_done then
         respawn_done = true
         db.actor:set_health_ex(1)
@@ -384,6 +410,7 @@ function save_position(stash_data)
             sleep.stash_save.posZ or 0)
         sleep.stash_save.level_vert = db.actor:level_vertex_id()
         sleep.stash_save.game_vert = db.actor:game_vertex_id()
+        sleep.stash_save.stash_id = stash_data.stash_id
         sleep.type = "stash"
         level.map_add_object_spot_ser(stash_data.stash_id, "ui_pda2_actor_sleep_location", "Respawn")
     else
@@ -402,7 +429,6 @@ end
 
 function actor_on_sleep()
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    print_dbg("ON SLEEP | %s %s", sleep.stash_created, sleep.sleep_created)
     if not sleep.stash_created or sleep.stash_created == false then
         print_dbg("SET POSITION on SLEEP")
         sleep.sleep_created = true;
@@ -412,16 +438,18 @@ end
 
 function actor_on_stash_create(stash_data)
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    print_dbg("SET POSITION on STASH CREATE %s", stash_data.stash_id)
     sleep.stash_created = true;
     save_position(stash_data)
 end
 
-function actor_on_stash_remove()
+function actor_on_stash_remove(stash_data)
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    sleep.stash_created = false;
-    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
-    print_dbg("STASH REMOVED, stash_created = %s", sleep.stash_created)
+    if sleep.stash_save and (stash_data.stash_id == sleep.stash_save.stash_id) then
+        sleep.stash_created = false;
+        sleep.stash_save = nil
+        sleep.type = "sleep"
+        alife_storage_manager.get_state().dude_where_is_my_gear = sleep
+    end
 end
 
 -- NOT WORKING, NEED TO FIGURE OUT ANOTHER APPROACH
@@ -451,6 +479,7 @@ end
 function load_state(mdata)
     sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     sleep.position = vector():set(sleep.posX or 0, sleep.posY or 0, sleep.posZ or 0)
+    -- sleep.position = vector():set(sleep.stash_save.posX or 0, sleep.stash_save.posY or 0, sleep.stash_save.posZ or 0)
 end
 
 function on_tutor_gameover_respawn()
@@ -458,29 +487,41 @@ function on_tutor_gameover_respawn()
     currently_respawning = nil
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
-    print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", sleep.level, sleep.position.x, sleep.position.y, sleep.position.z,
-        sleep.level_vert, sleep.game_vert)
-    if sleep and (sleep.level and (sleep.level ~= level.name())) or
-        (sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) and
-        (sleep.stash_created or sleep.sleep_created) then
+    if sleep and (sleep.posX or sleep.stash_save.posX) and
+        (sleep.level and (sleep.level ~= level.name())) or
+        (sleep.stash_save and sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) then
+        print_dbg("SAME LEVEL TELEPORT")
         if sleep.stash_created then
-            ChangeLevel(sleep.stash_save.position, sleep.stash_save.level_vert, sleep.stash_save.game_vert, VEC_ZERO,
+            local player_vector_x = sleep.stash_save.posX
+            local player_vector_y = sleep.stash_save.posY
+            local player_vector_z = sleep.stash_save.posZ
+            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.stash_save.level_vert, sleep.stash_save.game_vert, VEC_ZERO,
                 true)
         else
-            ChangeLevel(sleep.position, sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
+            local player_vector_x = sleep.posX
+            local player_vector_y = sleep.posY
+            local player_vector_z = sleep.posZ
+            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
         end
-    elseif sleep and (sleep.posX or sleep.stash_save.posX) and (sleep.stash_created or sleep.sleep_created) then
+    elseif sleep and (sleep.posX or sleep.stash_save.posX)  then
         local player_lvid = db.actor:level_vertex_id()
         local player_gvid = db.actor:game_vertex_id()
+        print_dbg("DIFFERENT LEVEL TELEPORT")
         if sleep.stash_created then
-            xr_effects.change_level_now(
-                vector():set(sleep.stash_save.posX, sleep.stash_save.posY, sleep.stash_save.posZ), player_lvid,
-                player_gvid, VEC_ZERO, true)
+            local player_vector_x = sleep.stash_save.posX
+            local player_vector_y = sleep.stash_save.posY
+            local player_vector_z = sleep.stash_save.posZ
+            xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
+            player_gvid, VEC_ZERO, true)
         else
-            xr_effects.change_level_now(vector():set(sleep.posX, sleep.posY, sleep.posZ), player_lvid, player_gvid,
-                VEC_ZERO, true)
+            local player_vector_x = sleep.posX
+            local player_vector_y = sleep.posY
+            local player_vector_z = sleep.posZ
+            xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
+            player_gvid, VEC_ZERO, true)
         end
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
+        print_dbg("LONER TELEPORT")
         xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
 
     elseif db.actor:character_community() == "actor_army" then -- if military >>
