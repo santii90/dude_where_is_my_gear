@@ -132,15 +132,13 @@ local function determine_main_cause_of_death(hits)
     local top3_hits = getTop3Hits(hit_counts)
     local top_cause = top3_hits[1].key
     local main_cause_of_death = "unknown"
-    if top_cause == 6 then
-        main_cause_of_death = "stalker"
+    if top_cause == 6 or top_cause == 9 then
+        main_cause_of_death = "gun"
     elseif top_cause == 0 or top_cause == 1 or top_cause == 2 then
         main_cause_of_death = "elemental"
     elseif top_cause == 3 then
         main_cause_of_death = "radiation"
-    elseif top_cause == 5 or top_cause == 9 then
-        main_cause_of_death = "wound"
-    elseif top_cause == 7 or top_cause == 4 then
+    elseif top_cause == 5 or top_cause == 7 or top_cause == 4 then
         main_cause_of_death = "beast"
     elseif top_cause == 8 then
         main_cause_of_death = "explosion"
