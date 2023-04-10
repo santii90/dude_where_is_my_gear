@@ -70,6 +70,7 @@ function on_game_start()
     RegisterScriptCallback("on_game_load", on_game_load)
     RegisterScriptCallback("actor_on_before_hit", actor_on_before_hit)
     RegisterScriptCallback("on_before_save_input", on_before_save_input)
+    RegisterScriptCallback("on_key_press", on_key_press)
     options_vol = ui_options.get("sound/general/master_volume")
 end
 
@@ -89,14 +90,42 @@ function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     if sleep and sleep.last_death_time then
-        local invulnerable_time = sleep.last_death_time + 85000
+        local invulnerable_time = sleep.last_death_time + 65000
         if invulnerable_time < current_time then
             return
         end
-        if invulnerable_time > current_time and shit.type == 3 then
-            shit.power = 0
-            db.actor.radiation = 0
+        if invulnerable_time > current_time then
+            if shit.type == 3 then
+                shit.power = 0
+                db.actor.radiation = 0
+            else
+                shit.power = 0
+                db.actor.health = global_healing
+            end
+
         end
+    end
+end
+
+local direction_keys = {
+	[key_bindings.kFWD] = true,
+	[key_bindings.kBACK] = true,
+	[key_bindings.kL_STRAFE] = true,
+	[key_bindings.kR_STRAFE] = true,
+	[key_bindings.kCROUCH] = true,
+	[key_bindings.kACCEL] = true,
+    [key_bindings.kWPN_FIRE] = true,
+    [key_bindings.kWPN_ZOOM] = true,
+    [key_bindings.kL_LOOKOUT] = true,
+    [key_bindings.kR_LOOKOUT] = true,
+    [key_bindings.kJUMP] = true,
+	[7] = true,
+}
+
+function on_key_press(dik)
+    local bind = dik_to_bind(dik)
+    if direction_keys[bind] and sleep and sleep.last_death_time ~= 0 then
+        sleep.last_death_time = 0
     end
 end
 
