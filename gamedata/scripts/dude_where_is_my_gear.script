@@ -29,7 +29,7 @@ local respawn_info = {
     sleep_created = false,
     last_death_time = 0,
     stash_save = {},
-    dropped_stashes ={},
+    dropped_stashes = {}
 }
 local currently_respawning = nil
 local last_death_time = 0
@@ -39,6 +39,116 @@ local global_satiety = 1
 local global_power = 1
 local invulnerability = false
 local options_vol = 1
+local death_last_attacks = {}
+local last_attack_time = 0
+
+
+-- Utils
+local function add_hit_record(shit_type)
+    last_attack_time = time_global()
+    table.insert(death_last_attacks, shit_type)
+    if #death_last_attacks > 10 then
+        table.remove(death_last_attacks, 1)
+    end
+end
+
+local function check_attack_history_expiration()
+    if last_attack_time + 90000 < time_global() then
+        death_last_attacks = {}
+        print_dbg("ATTACK HISTORY CLEARED")
+    end
+end
+
+local function count_death_hit_by_type(hits)
+    local hit_counts = {
+        [0] = 0,
+        [1] = 0,
+        [2] = 0,
+        [3] = 0,
+        [4] = 0,
+        [5] = 0,
+        [6] = 0,
+        [7] = 0,
+        [8] = 0,
+        [9] = 0,
+        [10] = 0
+    }
+    -- iterate over the hits array and count the hit types
+    for _, hit_type in ipairs(hits) do
+        if hit_counts[hit_type] ~= nil then
+            hit_counts[hit_type] = hit_counts[hit_type] + 1
+        end
+    end
+    return hit_counts
+end
+
+-- Thanks ChatGPT
+local function getTop3Hits(counts)
+    -- Create a new table to store the sorted counts
+    local sortedCounts = {}
+
+    -- Iterate over the key-value pairs in the counts table and add them to the sortedCounts table
+    for key, value in pairs(counts) do
+        table.insert(sortedCounts, {
+            key = key,
+            count = value
+        })
+    end
+
+    -- Sort the sortedCounts table by count in descending order
+    table.sort(sortedCounts, function(a, b)
+        return a.count > b.count
+    end)
+
+    -- Create a new table to store the top 3 hits
+    local top3Hits = {}
+
+    -- Add the top 3 counts to the top3Hits table
+    for i = 1, 3 do
+        if sortedCounts[i] ~= nil then
+            table.insert(top3Hits, sortedCounts[i])
+        end
+    end
+
+    -- Return the top3Hits table
+    return top3Hits
+end
+
+local HitTypeIDFlipped = {
+    [0] = "Burn",
+    [1] = "Shock",
+    [2] = "ChemicalBurn",
+    [3] = "Radiation",
+    [4] = "Telepatic",
+    [5] = "Wound",
+    [6] = "FireWound",
+    [7] = "Strike",
+    [8] = "Explosion",
+    [9] = "Wound_2",
+    [10] = "LightBurn",
+  }
+
+local function determine_main_cause_of_death(hits)
+    local hit_counts = count_death_hit_by_type(hits)
+    local top3_hits = getTop3Hits(hit_counts)
+    local top_cause = top3_hits[1].key
+    local main_cause_of_death = "unknown"
+    if top_cause == 6 then
+        main_cause_of_death = "stalker"
+    elseif top_cause == 0 or top_cause == 1 or top_cause == 2 then
+        main_cause_of_death = "elemental"
+    elseif top_cause == 3 then
+        main_cause_of_death = "radiation"
+    elseif top_cause == 5 or top_cause == 9 then
+        main_cause_of_death = "wound"
+    elseif top_cause == 7 or top_cause == 4 then
+        main_cause_of_death = "beast"
+    elseif top_cause == 8 then
+        main_cause_of_death = "explosion"
+    end
+
+    return main_cause_of_death
+end
 
 function load_settings()
     max_money_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_percentage")
@@ -88,9 +198,25 @@ function print_dbg(text, ...)
     end
 end
 
+local HitTypeID = {
+    ["Burn"] = 0,
+    ["Shock"] = 1,
+    ["ChemicalBurn"] = 2,
+    ["Radiation"] = 3,
+    ["Telepatic"] = 4,
+    ["Wound"] = 5,
+    ["FireWound"] = 6,
+    ["Strike"] = 7,
+    ["Explosion"] = 8,
+    ["Wound_2"] = 9,
+    ["LightBurn"] = 10
+}
+
 function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
     local respawn_info = alife_storage_manager.get_state().dude_where_is_my_gear or respawn_info
+    check_attack_history_expiration()
+    add_hit_record(shit.type)
     if respawn_info and respawn_info.last_death_time then
         local invulnerable_time = respawn_info.last_death_time + 85000
         if invulnerable_time < current_time then
@@ -112,10 +238,15 @@ function actor_on_before_death(who, flags)
         respawn_info.last_death_time = last_death_time
         alife_storage_manager.get_state().dude_where_is_my_gear = respawn_info
     end
-    print_dbg("time_global %s", current_time)
-    print_dbg("is last_death_time < time_global %s", last_death_time < current_time)
-    print_dbg("last_death_time %s", last_death_time)
+    print_dbg("who %s", who)
+    print_dbg("flags %s", #flags)
+    -- iterate and print flags table
+    for i, flag in ipairs(flags) do
+        print_dbg("Flag " .. i .. ": " .. flag)
+    end
+
     if last_death_time > current_time and not respawn_done then
+        local final_cause_of_death = determine_main_cause_of_death(death_last_attacks)
         respawn_done = true
         db.actor:set_health_ex(1)
         if not currently_respawning then
@@ -224,7 +355,7 @@ function actor_on_before_death(who, flags)
             global_satiety = satiety
             global_power = power
             db.actor:give_game_news("Recovery",
-                tostring("You feel better " .. math.floor(global_healing * 100 + 0.5) .. "% of health " ..
+                tostring("You got took out by " .. final_cause_of_death .. " now feel better " .. math.floor(global_healing * 100 + 0.5) .. "% of health " ..
                              math.floor(global_satiety * 100 + 0.5) .. "% Satiety"), "ui_inGame2_neutral_2_mask", 0,
                 20000)
             currently_respawning = nil
@@ -395,8 +526,8 @@ function save_position(stash_data)
         respawn_info.stash_save.posX = pos.x
         respawn_info.stash_save.posY = pos.y
         respawn_info.stash_save.posZ = pos.z
-        respawn_info.stash_save.position = vector():set(respawn_info.stash_save.posX or 0, respawn_info.stash_save.posY or 0,
-            respawn_info.stash_save.posZ or 0)
+        respawn_info.stash_save.position = vector():set(respawn_info.stash_save.posX or 0,
+            respawn_info.stash_save.posY or 0, respawn_info.stash_save.posZ or 0)
         respawn_info.stash_save.level_vert = db.actor:level_vertex_id()
         respawn_info.stash_save.game_vert = db.actor:game_vertex_id()
         respawn_info.type = "stash"
@@ -473,41 +604,43 @@ function on_tutor_gameover_respawn()
     currently_respawning = nil
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
-    print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", respawn_info.level, respawn_info.position.x, respawn_info.position.y, respawn_info.position.z,
-    respawn_info.level_vert, respawn_info.game_vert)
-    print_dbg("STASH enter tele %s| %s %s %s |%s %s", respawn_info.stash_save.level, respawn_info.stash_save.position.x, respawn_info.stash_save.position.y, respawn_info.stash_save.position.z,
-    respawn_info.stash_save.level_vert, respawn_info.stash_save.game_vert)
+    -- print_dbg("SLEEP enter tele %s| %s %s %s |%s %s", respawn_info.level, respawn_info.position.x, respawn_info.position.y, respawn_info.position.z,
+    -- respawn_info.level_vert, respawn_info.game_vert)
+    -- print_dbg("STASH enter tele %s| %s %s %s |%s %s", respawn_info.stash_save.level, respawn_info.stash_save.position.x, respawn_info.stash_save.position.y, respawn_info.stash_save.position.z,
+    -- respawn_info.stash_save.level_vert, respawn_info.stash_save.game_vert)
     if respawn_info and (respawn_info.level and (respawn_info.level ~= level.name())) or
-        (respawn_info.stash_save.level and (respawn_info.stash_save.level ~= level.name())) and
+        (respawn_info.stash_save and (respawn_info.stash_save.level ~= level.name())) and
         (respawn_info.stash_created or respawn_info.sleep_created) then
-            if respawn_info.stash_created then
-                local player_vector_x = respawn_info.stash_save.posX
-                local player_vector_y = respawn_info.stash_save.posY
-                local player_vector_z = respawn_info.stash_save.posZ
-                ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), respawn_info.stash_save.level_vert, respawn_info.stash_save.game_vert, VEC_ZERO,
-                    true)
-            else
-                local player_vector_x = respawn_info.posX
-                local player_vector_y = respawn_info.posY
-                local player_vector_z = respawn_info.posZ
-                ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), respawn_info.level_vert, respawn_info.game_vert, VEC_ZERO, true)
-            end
-        elseif sleep and (respawn_info.posX or respawn_info.stash_save.posX) and (respawn_info.stash_created or respawn_info.sleep_created) then
-            local player_lvid = db.actor:level_vertex_id()
-            local player_gvid = db.actor:game_vertex_id()
-            if respawn_info.stash_created then
-                local player_vector_x = respawn_info.stash_save.posX
-                local player_vector_y = respawn_info.stash_save.posY
-                local player_vector_z = respawn_info.stash_save.posZ
-                xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
+        if respawn_info.stash_created then
+            local player_vector_x = respawn_info.stash_save.posX
+            local player_vector_y = respawn_info.stash_save.posY
+            local player_vector_z = respawn_info.stash_save.posZ
+            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z),
+                respawn_info.stash_save.level_vert, respawn_info.stash_save.game_vert, VEC_ZERO, true)
+        else
+            local player_vector_x = respawn_info.posX
+            local player_vector_y = respawn_info.posY
+            local player_vector_z = respawn_info.posZ
+            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), respawn_info.level_vert,
+                respawn_info.game_vert, VEC_ZERO, true)
+        end
+    elseif sleep and (respawn_info.posX or respawn_info.stash_save.posX) and
+        (respawn_info.stash_created or respawn_info.sleep_created) then
+        local player_lvid = db.actor:level_vertex_id()
+        local player_gvid = db.actor:game_vertex_id()
+        if respawn_info.stash_created then
+            local player_vector_x = respawn_info.stash_save.posX
+            local player_vector_y = respawn_info.stash_save.posY
+            local player_vector_z = respawn_info.stash_save.posZ
+            xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
                 player_gvid, VEC_ZERO, true)
-            else
-                local player_vector_x = respawn_info.posX
-                local player_vector_y = respawn_info.posY
-                local player_vector_z = respawn_info.posZ
-                xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
+        else
+            local player_vector_x = respawn_info.posX
+            local player_vector_y = respawn_info.posY
+            local player_vector_z = respawn_info.posZ
+            xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
                 player_gvid, VEC_ZERO, true)
-            end
+        end
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
         xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
 
