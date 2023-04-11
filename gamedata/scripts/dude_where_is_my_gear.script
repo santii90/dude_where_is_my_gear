@@ -46,7 +46,7 @@ local last_attack_time = 0
 local function add_hit_record(shit_type)
     last_attack_time = time_global()
     table.insert(death_last_attacks, shit_type)
-    if #death_last_attacks > 20 then
+    if #death_last_attacks > 25 then
         table.remove(death_last_attacks, 1)
     end
 end
@@ -124,8 +124,8 @@ local HitTypeIDFlipped = {
     [7] = "Strike",
     [8] = "Explosion",
     [9] = "Wound_2",
-    [10] = "LightBurn",
-  }
+    [10] = "LightBurn"
+}
 
 local function determine_main_cause_of_death(hits)
     local hit_counts = count_death_hit_by_type(hits)
@@ -232,18 +232,18 @@ function actor_on_before_hit(shit, bone_id, flag)
 end
 
 local direction_keys = {
-	[key_bindings.kFWD] = true,
-	[key_bindings.kBACK] = true,
-	[key_bindings.kL_STRAFE] = true,
-	[key_bindings.kR_STRAFE] = true,
-	[key_bindings.kCROUCH] = true,
-	[key_bindings.kACCEL] = true,
+    [key_bindings.kFWD] = true,
+    [key_bindings.kBACK] = true,
+    [key_bindings.kL_STRAFE] = true,
+    [key_bindings.kR_STRAFE] = true,
+    [key_bindings.kCROUCH] = true,
+    [key_bindings.kACCEL] = true,
     [key_bindings.kWPN_FIRE] = true,
     [key_bindings.kWPN_ZOOM] = true,
     [key_bindings.kL_LOOKOUT] = true,
     [key_bindings.kR_LOOKOUT] = true,
     [key_bindings.kJUMP] = true,
-	[7] = true,
+    [7] = true
 }
 
 function on_key_press(dik)
@@ -268,7 +268,7 @@ function actor_on_before_death(who, flags)
         db.actor:set_health_ex(1)
         if not currently_respawning then
             print_dbg("currently_respawning if NOT %s", currently_respawning)
-            drop_stash()
+            drop_stash(final_cause_of_death)
             currently_respawning = 1
         end
 
@@ -372,7 +372,8 @@ function actor_on_before_death(who, flags)
             global_satiety = satiety
             global_power = power
             db.actor:give_game_news("Recovery",
-                tostring("You got took out by " .. final_cause_of_death .. " now feel better " .. math.floor(global_healing * 100 + 0.5) .. "% of health " ..
+                tostring("You got took out by " .. final_cause_of_death .. " now feel better " ..
+                             math.floor(global_healing * 100 + 0.5) .. "% of health " ..
                              math.floor(global_satiety * 100 + 0.5) .. "% Satiety"), "ui_inGame2_neutral_2_mask", 0,
                 20000)
             currently_respawning = nil
@@ -397,7 +398,7 @@ end
 
 keep_items = nil
 
-function drop_stash()
+function drop_stash(final_cause_of_death)
     sleep.dead = true
     local actor = db.actor
     local se_obj = alife_create("inv_backpack", actor:position(), actor:level_vertex_id(), actor:game_vertex_id())
@@ -446,9 +447,20 @@ function drop_stash()
             name = "money_10",
             value = 10
         }}
-
+        local by_gun_mod = 1
+        local condition_mod = 1
+        local by_beast_mod
+        if (final_cause_of_death == "gun") then
+            by_gun_mod = 0.5
+        end
+        if (final_cause_of_death == "elemental") then
+            condition_mod = 2
+        end
+        if (final_cause_of_death == "beast") then
+            by_beast_mod = 0.5
+        end
         local money_left = math.random(math.floor(money_to_lose * 0.15),
-            math.floor(money_to_lose * max_money_to_drop_percentage))
+            math.floor(money_to_lose * max_money_to_drop_percentage)) * by_gun_mod
 
         for _, denom in ipairs(denominations) do
             local num_items_to_create = math.floor(money_left / denom.value)
@@ -473,7 +485,7 @@ function drop_stash()
                                     if lose_item_condition then
                                         local condition = item:condition()
                                         local condition_reduction =
-                                            math.random(min_condition_lose, max_condition_lose) / 100
+                                            math.random(min_condition_lose, max_condition_lose) * condition_mod / 100
                                         condition = condition - condition_reduction
                                         if (condition < 0) then
                                             condition = 0
@@ -484,14 +496,20 @@ function drop_stash()
                                         print_dbg("IsPistol")
                                     elseif IsWeapon(item) then
                                         print_dbg("IsWeapon")
-                                        if math.random(1, 100) >= keep_equipped_guns_chance then
+                                        if math.random(1, 100) <= keep_equipped_guns_chance then
                                             print_dbg("keep_equipped_guns_chance")
+                                        elseif math.random(1, 100) <= chance_of_losing_items / by_gun_mod then
+                                            alife_release(item)
+                                        else
                                             db.actor:transfer_item(item, obj)
                                         end
                                     elseif IsOutfit(item) or IsHeadgear(item) then
                                         print_dbg("IsOutfit")
-                                        if math.random(1, 100) >= keep_equipped_outfit_chance then
+                                        if math.random(1, 100) <= keep_equipped_outfit_chance then
                                             print_dbg("keep_equipped_outfit_chance")
+                                        elseif math.random(1, 100) <= chance_of_losing_items / by_gun_mod then
+                                            alife_release(item)
+                                        else
                                             db.actor:transfer_item(item, obj)
                                         end
                                     elseif not is_keeping_item then
@@ -505,6 +523,20 @@ function drop_stash()
                                     end
                                 elseif string.match(item:section(), "^mag_") then
                                     -- Partial compatibility with MagsRedux (always keep all the mags)
+                                elseif (ini_sys:r_string_ex(item:section(), "kind") == "i_medical") then
+                                    print_dbg("i_medical")
+                                    if math.random(1, 100) <= chance_of_losing_items / by_beast_mod then
+                                        alife_release(item)
+                                    else
+                                        db.actor:transfer_item(item, obj)
+                                    end
+                                elseif (ini_sys:r_string_ex(item:section(), "kind") == "i_food") then
+                                    print_dbg("i_food")
+                                    if math.random(1, 100) <= chance_of_losing_items / by_beast_mod then
+                                        alife_release(item)
+                                    else
+                                        db.actor:transfer_item(item, obj)
+                                    end
                                 elseif not is_keeping_item then
                                     alife_release(item)
                                 else
@@ -623,23 +655,24 @@ function on_tutor_gameover_respawn()
     currently_respawning = nil
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
-    if sleep and
-        (sleep.posX and sleep.level and (sleep.level ~= level.name())) or
-        (sleep.stash_save and sleep.stash_save.posX and sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) then
+    if sleep and (sleep.posX and sleep.level and (sleep.level ~= level.name())) or
+        (sleep.stash_save and sleep.stash_save.posX and sleep.stash_save.level and
+            (sleep.stash_save.level ~= level.name())) then
         print_dbg("SAME LEVEL TELEPORT")
         if sleep.stash_created then
             local player_vector_x = sleep.stash_save.posX
             local player_vector_y = sleep.stash_save.posY
             local player_vector_z = sleep.stash_save.posZ
-            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.stash_save.level_vert, sleep.stash_save.game_vert, VEC_ZERO,
-                true)
+            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.stash_save.level_vert,
+                sleep.stash_save.game_vert, VEC_ZERO, true)
         else
             local player_vector_x = sleep.posX
             local player_vector_y = sleep.posY
             local player_vector_z = sleep.posZ
-            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
+            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.level_vert,
+                sleep.game_vert, VEC_ZERO, true)
         end
-    elseif sleep and (sleep.posX or sleep.stash_save and sleep.stash_save.posX)  then
+    elseif sleep and (sleep.posX or sleep.stash_save and sleep.stash_save.posX) then
         local player_lvid = db.actor:level_vertex_id()
         local player_gvid = db.actor:game_vertex_id()
         print_dbg("DIFFERENT LEVEL TELEPORT")
@@ -648,13 +681,13 @@ function on_tutor_gameover_respawn()
             local player_vector_y = sleep.stash_save.posY
             local player_vector_z = sleep.stash_save.posZ
             xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
-            player_gvid, VEC_ZERO, true)
+                player_gvid, VEC_ZERO, true)
         else
             local player_vector_x = sleep.posX
             local player_vector_y = sleep.posY
             local player_vector_z = sleep.posZ
             xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
-            player_gvid, VEC_ZERO, true)
+                player_gvid, VEC_ZERO, true)
         end
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
         print_dbg("LONER TELEPORT")
