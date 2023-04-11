@@ -432,21 +432,6 @@ function drop_stash(final_cause_of_death)
 
         m_data.player_created_stashes[se_obj.id] = itm_backpack
 
-        -- Lose money
-        local current_money = actor:money()
-        local money_to_lose = math.random(0, math.floor(current_money * max_money_percentage))
-        db.actor:give_money(-money_to_lose)
-
-        local denominations = {{
-            name = "money_1000",
-            value = 1000
-        }, {
-            name = "money_100",
-            value = 100
-        }, {
-            name = "money_10",
-            value = 10
-        }}
         local by_gun_mod = 1
         local condition_mod = 1
         local by_beast_mod
@@ -459,6 +444,25 @@ function drop_stash(final_cause_of_death)
         if (final_cause_of_death == "beast") then
             by_beast_mod = 0.5
         end
+
+        -- Lose money
+        local denominations = {{
+            name = "money_1000",
+            value = 1000
+        }, {
+            name = "money_100",
+            value = 100
+        }, {
+            name = "money_10",
+            value = 10
+        }}
+        local current_money = actor:money()
+        -- /by_gun_mod if killed by gun duplicates max amount of money to lost.
+        -- /by_beast_mod if killed by beast reduce by half max amount of money to lost.
+        local money_to_lose = math.random(0, math.floor(current_money * max_money_percentage / by_gun_mod)) * by_beast_mod
+        db.actor:give_money(-money_to_lose)
+
+        -- Drop money into dropped stash. by_gun_mod reduces by half amount of money to get back on stash.
         local money_left = math.random(math.floor(money_to_lose * 0.15),
             math.floor(money_to_lose * max_money_to_drop_percentage)) * by_gun_mod
 
