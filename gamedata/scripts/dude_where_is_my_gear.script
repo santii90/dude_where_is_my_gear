@@ -243,8 +243,6 @@ function actor_on_before_hit(shit, bone_id, flag)
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     check_attack_history_expiration()
     add_hit_record(shit.type)
-    actor_rank = ranks.get_obj_rank_name(db.actor)
-    define_rank_modifier(actor_rank)
     if sleep and sleep.last_death_time then
         local invulnerable_time = sleep.last_death_time + 65000
         if invulnerable_time < current_time then
@@ -470,6 +468,9 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
         local condition_mod = 1
         local by_beast_mod = 1
         local general_mod = 1
+        if (use_rank_mod) then
+            general_mod = define_rank_modifier(actor_rank)
+        end
         if (use_kill_type_mod and final_cause_of_death == "gun") then
             by_gun_mod = 0.5
         end
