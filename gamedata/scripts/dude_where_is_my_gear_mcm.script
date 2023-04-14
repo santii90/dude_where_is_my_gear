@@ -8,9 +8,9 @@ function on_mcm_load()
             {id = "lose_item_condition",                type = "check", val = 1, def = true},
             {id = "max_condition_lose",                 type = "track", val = 2, min=1,    max=100,  step=1,    def = 20},
 			{id = "min_condition_lose",                 type = "track", val = 2, min=1,    max=100,  step=1,    def = 2},
-			{id = "keep_equipped_guns_ammo_chance",     type = "track", val = 2, min=0,    max=100,  step=1,    def = 40},
-			{id = "keep_equipped_guns_chance",          type = "track", val = 2, min=0,    max=100,  step=1,    def = 5},
-			{id = "keep_equipped_outfit_chance",        type = "track", val = 2, min=0,    max=100,  step=1,    def = 5},
+			{id = "keep_equipped_guns_ammo_chance",     type = "track", val = 2, min=0,    max=100,  step=1,    def = 35},
+			{id = "keep_equipped_guns_chance",          type = "track", val = 2, min=0,    max=100,  step=1,    def = 10},
+			{id = "keep_equipped_outfit_chance",        type = "track", val = 2, min=0,    max=100,  step=1,    def = 10},
 			{id = "full_heal_chance",                   type = "track", val = 2, min=1,    max=100,  step=1,    def = 10},
 			{id = "full_satiety_chance",                type = "track", val = 2, min=1,    max=100,  step=1,    def = 25},
 			{id = "meal_chance",                        type = "track", val = 2, min=1,    max=100,  step=1,    def = 25},
@@ -19,6 +19,8 @@ function on_mcm_load()
             {id = "always_wake_up_daytime",             type = "check", val = 1, def = false},
             {id = "campfire_save",                      type = "check", val = 1, def = true},
             {id = "remove_previous_stash",              type = "check", val = 1, def = false},
+            {id = "use_kill_type_mod",                  type = "check", val = 1, def = true},
+            {id = "use_rank_modifier",                  type = "check", val = 1, def = true},
 		}
     }
     return op
@@ -31,17 +33,19 @@ local defaults = {
     ["lose_item_condition"] = true,
     ["max_condition_lose"] = 20,
     ["min_condition_lose"] = 2,
-    ["keep_equipped_guns_ammo_chance"] = 45,
-    ["keep_equipped_guns_chance"] = 5,
-    ["keep_equipped_outfit_chance"] = 5,
+    ["keep_equipped_guns_ammo_chance"] = 35,
+    ["keep_equipped_guns_chance"] = 10,
+    ["keep_equipped_outfit_chance"] = 10,
     ["full_heal_chance"] = 10,
     ["full_satiety_chance"] = 25,
     ["meal_chance"] = 25,
     ["chance_of_losing_items"] = 20,
     ["enable_time_forward"] = true,
-    ["always_wake_up_daytime"] = true,
+    ["always_wake_up_daytime"] = false,
     ["campfire_save"] = true,
     ["remove_previous_stash"] = false,
+    ["use_kill_type_mod"] = true,
+    ["use_rank_modifier"] = true,
 }
     
 function get_config(key)
