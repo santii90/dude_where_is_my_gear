@@ -450,7 +450,8 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
         ["device_pda_1"] = true,
         ["device_pda_2"] = true,
         ["device_pda_3"] = true,
-        ["detector_simple"] = true
+        ["detector_simple"] = true,
+        ["itm_actor_backpack"] = true,
     }
     if (se_obj) then
         local txt = strformat(game.translate_string("st_itm_stash_of_character"), db.actor:character_name())
