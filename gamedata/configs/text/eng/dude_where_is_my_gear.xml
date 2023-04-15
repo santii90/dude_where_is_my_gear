@@ -80,4 +80,16 @@
 		<text>Enable saving at campfires</text>
 	</string>
 
+	<string id="ui_mcm_dude_where_is_my_gear_remove_previous_stash">
+		<text>Remove previous drop stash upon death</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_use_kill_type_mod">
+		<text>What kills you (beasts, guns, anomalies) modify drop/steal chance</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_use_rank_modifier">
+		<text>Progressive condition/lost chance based on rank</text>
+	</string>
+
 </string_table>
