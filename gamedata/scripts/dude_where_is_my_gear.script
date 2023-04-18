@@ -33,9 +33,7 @@ local sleep = {
     sleep_created = false,
     last_death_time = 0,
     stash_save = {},
-    dropped_stashes = {},
-    last_dropped_item_list = {},
-    last_lost_item_list = {}
+    dropped_stashes = {}
 }
 local currently_respawning = nil
 local last_death_time = 0
@@ -59,8 +57,8 @@ local ranks_mods = {
     ["master"] = 0.85,
     ["legend"] = 0.75
 }
--- local last_dropped_item_list = {}
--- local last_lost_item_list = {}
+local last_dropped_item_list = {}
+local last_lost_item_list = {}
 
 -- Utils
 local function add_hit_record(shit_type)
@@ -188,42 +186,33 @@ local function removeValueFromArray(array, valueToRemove)
 end
 
 local function add_to_dropped_item_list(item, status)
-    sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     local item_name = ui_item.get_sec_name(item:section()) or 'unknown'
     if status == "d" then
-        print_dbg("Dropped item: " .. item_name)
-        if sleep.last_dropped_item_list[item_name] == nil then
-            sleep.last_dropped_item_list[item_name] = 1
+        if last_dropped_item_list[item_name] == nil then
+            last_dropped_item_list[item_name] = 1
         else
-            sleep.last_dropped_item_list[item_name] = sleep.last_dropped_item_list[item_name] + 1
+            last_dropped_item_list[item_name] = last_dropped_item_list[item_name] + 1
         end
     elseif status == "l" then
-        print_dbg("Lost item: " .. item_name)
-        if sleep.last_lost_item_list[item_name] == nil then
-            sleep.last_lost_item_list[item_name] = 1
+        if last_lost_item_list[item_name] == nil then
+            last_lost_item_list[item_name] = 1
         else
-            sleep.last_lost_item_list[item_name] = sleep.last_lost_item_list[item_name] + 1
+            last_lost_item_list[item_name] = last_lost_item_list[item_name] + 1
         end
     end
-    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 end
 
 local function create_report_msg_string()
-    sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    local msg = ""
-    print_dbg("last_dropped_item_list size: ", sleep.last_dropped_item_list)
-    for k, v in pairs(sleep.last_dropped_item_list) do
-        print(k .. " : " .. v)
-    end
-    for item_name, count in pairs(sleep.last_dropped_item_list) do
-        msg = msg .. ", " .. item_name .. " x" .. count .. " dropped"
+    local msg = "Dropped : \\n"
+    for item_name, count in pairs(last_dropped_item_list) do
+        msg = msg .. "- " .. item_name .. " x" .. count .. " dropped \\n"
         print_dbg("Dropped item: " .. item_name .. " x" .. count)
     end
-    for item_name, count in pairs(sleep.last_lost_item_list) do
-        msg = msg .. ", " .. item_name .. " x" .. count .. " lost"
+    msg = msg .. "Lost : \\n"
+    for item_name, count in pairs(last_lost_item_list) do
+        msg = msg .. "- " .. item_name .. " x" .. count .. " lost \\n"
         print_dbg("Lost item: " .. item_name .. " x" .. count)
     end
-    print_dbg("Recount msg: %s ", msg)
     return msg
 end
 
@@ -275,12 +264,12 @@ function on_game_load()
     actor_rep = utils_obj.get_reputation_name(db.actor:character_reputation())
     actor_rank = ranks.get_obj_rank_name(db.actor)
 
-    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    if not sleep.last_dropped_item_list then
-        sleep.last_dropped_item_list = {}
-        sleep.last_lost_item_list = {}
-    end
-    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
+    -- local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    -- if not sleep.last_dropped_item_list then
+    --     sleep.last_dropped_item_list = {}
+    --     sleep.last_lost_item_list = {}
+    -- end
+    -- alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 end
 
 function print_dbg(text, ...)
@@ -677,9 +666,8 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                 end
                 db.actor:iterate_inventory(itr_inv)
                 local items_recount = create_report_msg_string()
-                print_dbg("items_recount %s", items_recount)
                 db.actor:give_game_news("Item recount", tostring(
-                    "You woke up and did a quick item recount, looks like this is missing: " .. items_recount),
+                    "You woke up and did a quick item recount, looks like this is missing: \\n" .. items_recount),
                     "ui_inGame2_neutral_2_mask", 0, 20000)
                 return true
             end
