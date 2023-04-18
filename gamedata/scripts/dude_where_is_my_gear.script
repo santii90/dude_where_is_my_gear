@@ -166,7 +166,9 @@ local function determine_main_cause_of_death(hits)
         main_cause_of_death = "elemental"
     elseif top_cause == 3 then
         main_cause_of_death = "radiation"
-    elseif top_cause == 5 or top_cause == 7 or top_cause == 4 then
+    elseif top_cause == 4 then
+        main_cause_of_death = "telepatic"
+    elseif top_cause == 5 or top_cause == 7 then
         main_cause_of_death = "beast"
     elseif top_cause == 8 then
         main_cause_of_death = "explosion"
@@ -216,6 +218,13 @@ local function create_report_msg_string()
     return msg
 end
 
+local function isFoodKind(item)
+    return (ini_sys:r_string_ex(item:section(), "kind") == "i_food")
+end
+
+local function isMedicalKind(item)
+    return (ini_sys:r_string_ex(item:section(), "kind") == "i_medical")
+end
 -- End of Utils
 
 function load_settings()
@@ -564,104 +573,103 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
             if (obj) then
                 local function itr_inv(temp, item)
                     print_dbg("item: %s", item:section())
-                    if not (ignore_items[item:section()]) then
-                        if (item and item:id() ~= b_id and keep_items[item:section()] == nil) then
-                            if (ini_sys:r_bool_ex(item:section(), "quest_item", false) == false) then
-                                local is_keeping_item = math.random(1, 100) <= chance_of_losing_items / general_mod
-                                if (item_backpack.is_in_slot(item) == true) then
-                                    -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
-                                    if lose_item_condition then
-                                        local condition = item:condition()
-                                        -- if killed by elemental damage increase condition lose of equipped items
-                                        local condition_reduction =
-                                            (math.random(min_condition_lose, max_condition_lose) / condition_mod /
-                                                general_mod) / 100
-                                        condition = condition - condition_reduction
-                                        if (condition < 0) then
-                                            condition = 0
-                                        end
-                                        item:set_condition(condition)
-                                    end
-                                    if IsPistol(item) then
-                                        print_dbg("IsPistol")
-                                    elseif IsMelee(item) then
-                                        print_dbg("IsMelee")
-                                    elseif IsWeapon(item) then
-                                        print_dbg("IsWeapon")
-                                        -- If killed by gun chance of losing equipped weapon is increased by by_gun_mod
-                                        if math.random(1, 100) <= (keep_equipped_guns_chance * general_mod) then
-                                            print_dbg("keep_equipped_guns_chance")
-                                        elseif math.random(1, 100) <=
-                                            (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod *
-                                                condition_mod) then
-                                            alife_release(item)
-                                            add_to_dropped_item_list(item, 'l')
-                                        else
-                                            db.actor:transfer_item(item, obj)
-                                            add_to_dropped_item_list(item, 'd')
-                                        end
-                                    elseif IsOutfit(item) or IsHeadgear(item) then
-                                        print_dbg("IsOutfit")
-                                        -- If killed by gun chance of losing equipped outfit is increased by by_gun_mod
-                                        if math.random(1, 100) <= (keep_equipped_outfit_chance * general_mod) then
-                                            print_dbg("keep_equipped_outfit_chance")
-                                        elseif math.random(1, 100) <=
-                                            (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod *
-                                                condition_mod) then
-                                            alife_release(item)
-                                            add_to_dropped_item_list(item, 'l')
-                                        else
-                                            db.actor:transfer_item(item, obj)
-                                            add_to_dropped_item_list(item, 'd')
-                                        end
-                                    elseif not is_keeping_item then
-                                        alife_release(item)
-                                        add_to_dropped_item_list(item, 'l')
-                                    else
-                                        db.actor:transfer_item(item, obj)
-                                        add_to_dropped_item_list(item, 'd')
-                                    end
-                                elseif item_backpack.is_ammo_for_wpn(item:section()) == true then
-                                    if math.random(1, 100) >=
-                                        (keep_equipped_guns_ammo_chance / by_gun_mod * general_mod) then
-                                        db.actor:transfer_item(item, obj)
-                                        add_to_dropped_item_list(item, 'd')
-                                    end
-                                elseif string.match(item:section(), "^mag_") then
-                                    -- Partial compatibility with MagsRedux (always keep all the mags)
-                                elseif (ini_sys:r_string_ex(item:section(), "kind") == "i_medical") then
-                                    print_dbg("i_medical")
-                                    -- If killed by gun chance of losing medical items is increased by by_gun_mod
-                                    if math.random(1, 100) <=
-                                        (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod *
-                                            condition_mod) then
-                                        alife_release(item)
-                                        add_to_dropped_item_list(item, 'l')
-                                    else
-                                        db.actor:transfer_item(item, obj)
-                                        add_to_dropped_item_list(item, 'd')
-                                    end
-                                elseif (ini_sys:r_string_ex(item:section(), "kind") == "i_food") then
-                                    print_dbg("i_food")
-                                    -- If killed by beast chance of losing food is increased by by_beast_mod
-                                    if math.random(1, 100) <=
-                                        (chance_of_losing_items / by_beast_mod / general_mod * by_gun_mod *
-                                            condition_mod) then
-                                        alife_release(item)
-                                        add_to_dropped_item_list(item, 'l')
-                                    else
-                                        db.actor:transfer_item(item, obj)
-                                        add_to_dropped_item_list(item, 'd')
-                                    end
-                                elseif not is_keeping_item then
-                                    alife_release(item)
-                                    add_to_dropped_item_list(item, 'l')
-                                else
-                                    db.actor:transfer_item(item, obj)
-                                    add_to_dropped_item_list(item, 'd')
-                                end
+                    local section = item:section()
+                    local item_id = item:id()
+
+                    if ignore_items[section] then
+                        return
+                    end
+
+                    if item_id == b_id or keep_items[section] ~= nil then
+                        return
+                    end
+
+                    if ini_sys:r_bool_ex(section, "quest_item", false) then
+                        return
+                    end
+
+                    local is_keeping_item = math.random(1, 100) <= chance_of_losing_items / general_mod
+                    if (item_backpack.is_in_slot(item) == true) then
+                        -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
+                        if lose_item_condition then
+                            local condition = item:condition()
+                            -- if killed by elemental damage increase condition lose of equipped items
+                            local condition_reduction = (math.random(min_condition_lose, max_condition_lose) /
+                                                            condition_mod / general_mod) / 100
+                            condition = condition - condition_reduction
+                            if (condition < 0) then
+                                condition = 0
                             end
+                            item:set_condition(condition)
                         end
+                        if IsPistol(item) or IsMelee(item) then
+                            -- Ignore pistols type and melee
+                        elseif IsWeapon(item) then
+                            print_dbg("IsWeapon")
+                            -- If killed by gun chance of losing equipped weapon is increased by by_gun_mod
+                            if math.random(1, 100) <= (keep_equipped_guns_chance * general_mod) then
+                                print_dbg("keep_equipped_guns_chance")
+                            elseif math.random(1, 100) <=
+                                (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
+                                alife_release(item)
+                                add_to_dropped_item_list(item, 'l')
+                            else
+                                db.actor:transfer_item(item, obj)
+                                add_to_dropped_item_list(item, 'd')
+                            end
+                        elseif IsOutfit(item) or IsHeadgear(item) then
+                            print_dbg("IsOutfit")
+                            -- If killed by gun chance of losing equipped outfit is increased by by_gun_mod
+                            if math.random(1, 100) <= (keep_equipped_outfit_chance * general_mod) then
+                                print_dbg("keep_equipped_outfit_chance")
+                            elseif math.random(1, 100) <=
+                                (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
+                                alife_release(item)
+                                add_to_dropped_item_list(item, 'l')
+                            else
+                                db.actor:transfer_item(item, obj)
+                                add_to_dropped_item_list(item, 'd')
+                            end
+                        elseif not is_keeping_item then
+                            alife_release(item)
+                            add_to_dropped_item_list(item, 'l')
+                        else
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd')
+                        end
+                    elseif item_backpack.is_ammo_for_wpn(item:section()) == true then
+                        if math.random(1, 100) >= (keep_equipped_guns_ammo_chance / by_gun_mod * general_mod) then
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd')
+                        end
+                    elseif string.match(item:section(), "^mag_") then
+                        -- Partial compatibility with MagsRedux (always keep all the mags)
+                    elseif isMedicalKind(item) then
+                        -- If killed by gun chance of losing medical items is increased by by_gun_mod
+                        if math.random(1, 100) <=
+                            (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
+                            alife_release(item)
+                            add_to_dropped_item_list(item, 'l')
+                        else
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd')
+                        end
+                    elseif isFoodKind(item) then
+                        -- If killed by beast chance of losing food is increased by by_beast_mod
+                        if math.random(1, 100) <=
+                            (chance_of_losing_items / by_beast_mod / general_mod * by_gun_mod * condition_mod) then
+                            alife_release(item)
+                            add_to_dropped_item_list(item, 'l')
+                        else
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd')
+                        end
+                    elseif not is_keeping_item then
+                        alife_release(item)
+                        add_to_dropped_item_list(item, 'l')
+                    else
+                        db.actor:transfer_item(item, obj)
+                        add_to_dropped_item_list(item, 'd')
                     end
                 end
                 db.actor:iterate_inventory(itr_inv)
