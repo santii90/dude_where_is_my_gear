@@ -11,13 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
-      - uses: actions/checkout@master
-      - name: Archive Release
-        uses: thedoctor0/zip-release@0.7.1
-        with:
-          type: 'zip'
-          filename: ' dude_where_is_my_gear_v${{ github.ref_name }}.zip'
-          exclusions: '*.git* /*node_modules/* .editorconfig'
+      - uses: actions/checkout@v2
+      - name: Create .zip file
+        run: |
+          VERSION=${{ github.ref }}
+          VERSION=${VERSION#refs/tags/}
+          VERSION=${VERSION//./_}
+          7z a dude_where_is_my_gear_v${VERSION}.zip -r *
+          ls -la *.zip
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
