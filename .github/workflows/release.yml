@@ -11,14 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
-      - uses: actions/checkout@v2
-      - name: Create .zip file
-        run: |
-          VERSION=${{ github.ref }}
-          VERSION=${VERSION#refs/tags/}
-          VERSION=${VERSION//./_}
-          7z a dude_where_is_my_gear_v${VERSION}.zip -r *
-          ls -la *.zip
+      - uses: actions/checkout@master
+      - name: Archive Release
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: 'zip'
+          filename: ' dude_where_is_my_gear_v${{ github.ref_name }}.zip'
+          exclusions: '*.git* /*node_modules/* .editorconfig'
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -32,13 +31,8 @@ jobs:
             - Describe the changes in your release here
           draft: false
           prerelease: false
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Release
+        uses: ncipollo/release-action@v1.12.0
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dude_where_is_my_gear_v${{ github.ref_name }}.zip
-          asset_name: dude_where_is_my_gear_v${{ github.ref_name }}.zip
-          asset_content_type: application/zip
+          artifacts: "dude_where_is_my_gear_v${{ github.ref_name }}.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}
