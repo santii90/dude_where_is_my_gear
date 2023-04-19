@@ -23,21 +23,9 @@ jobs:
           7z a ../dude_where_is_my_gear_v${{ env.VERSION }}.zip *
         env:
           VERSION: ${{ github.ref_name }}
-      # - name: Create Release
-      #   id: create_release
-      #   uses: actions/create-release@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     tag_name: ${{ github.ref }}
-      #     release_name: Release ${{ github.ref }}
-      #     body: |
-      #       Changes in this release:
-      #       - Describe the changes in your release here
-      #     draft: false
-      #     prerelease: false
       - name: Upload Release
         uses: ncipollo/release-action@v1.12.0
         with:
           artifacts: "dude_where_is_my_gear_v${{ github.ref_name }}.zip"
+          generateReleaseNotes: true
           token: ${{ secrets.GITHUB_TOKEN }}
