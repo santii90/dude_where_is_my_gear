@@ -16,7 +16,7 @@ jobs:
       - name: Create temporary directory
         run: mkdir temp
       - name: Copy files to temporary directory
-        run: cp -r . temp/
+        run: cp -r --exclude temp . temp/
       - name: Create zip file
         run: 7z a dude_where_is_my_gear_v${{ env.VERSION }}.zip temp/
         env:
