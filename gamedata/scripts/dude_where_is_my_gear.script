@@ -622,7 +622,7 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                         item:set_condition(condition)
                     end
                     if IsPistol(item) or IsMelee(item) then
-                        -- Ignore pistols type and melee until "experienced" rank
+                        -- Ignore pistols and melee type until "experienced" rank
                         if actor_rank ~= "novice" and actor_rank ~= "trainee" then
                             print_dbg("IsPistol or IsMelee")
                             if item_backpack.is_in_slot(item) == true and math.random(1, 100) <=
