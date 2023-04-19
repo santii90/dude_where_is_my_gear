@@ -3,8 +3,8 @@ name: Create Release
 on:
   push:
     tags:
-      - 'v*.*.*'
-      - 'v*.*.*-beta*'
+      - "v*.*.*"
+      - "v*.*.*-beta*"
 
 jobs:
   build:
@@ -16,7 +16,8 @@ jobs:
           VERSION=${{ github.ref }}
           VERSION=${VERSION#refs/tags/}
           VERSION=${VERSION//./_}
-          7z a dude_where_is_my_gear_v${VERSION}.zip -r .
+          cd ${{ github.workspace }}
+          7z a dude_where_is_my_gear_v${VERSION}.zip -r *
       - name: Get commit messages
         id: commit_messages
         run: |
