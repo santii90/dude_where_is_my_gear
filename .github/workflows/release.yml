@@ -24,10 +24,10 @@ jobs:
         env:
           VERSION: ${{ github.ref_name }}
       - name: Get commit messages
-          run: |
-            git log --pretty=format:"- %s%n" ${{ github.ref }}
-            echo "::set-output name=commit_msgs::$(git log --pretty=format:'- %s%n' ${{ github.ref }})"
-          id: commit_msgs
+        run: |
+          git log --pretty=format:"- %s%n" ${{ github.ref }}
+          echo "::set-output name=commit_msgs::$(git log --pretty=format:'- %s%n' ${{ github.ref }})"
+        id: commit_msgs
       - name: Upload Release
         uses: ncipollo/release-action@v1.12.0
         with:
