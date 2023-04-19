@@ -40,6 +40,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dude_where_is_my_gear_v${{ github.ref }}.zip
-          asset_name: dude_where_is_my_gear_v${{ github.ref }}.zip
+          asset_path: ./dude_where_is_my_gear_v${{ github.ref_name }}.zip
+          asset_name: dude_where_is_my_gear_v${{ github.ref_name }}.zip
           asset_content_type: application/zip
