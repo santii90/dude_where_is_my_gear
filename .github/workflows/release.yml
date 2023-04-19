@@ -23,9 +23,14 @@ jobs:
           7z a ../dude_where_is_my_gear_v${{ env.VERSION }}.zip *
         env:
           VERSION: ${{ github.ref_name }}
+      - name: Get commit messages
+          run: |
+            git log --pretty=format:"- %s%n" ${{ github.ref }}
+            echo "::set-output name=commit_msgs::$(git log --pretty=format:'- %s%n' ${{ github.ref }})"
+          id: commit_msgs
       - name: Upload Release
         uses: ncipollo/release-action@v1.12.0
         with:
           artifacts: "dude_where_is_my_gear_v${{ github.ref_name }}.zip"
-          generateReleaseNotes: true
+          body: ${{ steps.commit_msgs.outputs.commit_msgs }}
           token: ${{ secrets.GITHUB_TOKEN }}
