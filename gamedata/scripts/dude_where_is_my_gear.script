@@ -609,25 +609,24 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                     end
 
                     local is_keeping_item = math.random(1, 100) >= chance_of_losing_items / general_mod
-                    if (item_backpack.is_in_slot(item) == true) then
-                        -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
-                        if lose_item_condition then
-                            local condition = item:condition()
-                            -- if killed by elemental damage increase condition lose of equipped items
-                            local condition_reduction = (math.random(min_condition_lose, max_condition_lose) /
-                                                            condition_mod / general_mod) / 100
-                            condition = condition - condition_reduction
-                            if (condition < 0) then
-                                condition = 0
-                            end
-                            item:set_condition(condition)
+                    -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
+                    if lose_item_condition then
+                        local condition = item:condition()
+                        -- if killed by elemental damage increase condition lose of equipped items
+                        local condition_reduction =
+                            (math.random(min_condition_lose, max_condition_lose) / condition_mod / general_mod) / 100
+                        condition = condition - condition_reduction
+                        if (condition < 0) then
+                            condition = 0
                         end
-                        if IsPistol(item) or IsMelee(item) then
-                            -- Ignore pistols type and melee
-                        elseif IsWeapon(item) then
-                            print_dbg("IsWeapon")
-                            -- If killed by gun chance of losing equipped weapon is increased by by_gun_mod
-                            if math.random(1, 100) <= (keep_equipped_guns_chance * general_mod) then
+                        item:set_condition(condition)
+                    end
+                    if IsPistol(item) or IsMelee(item) then
+                        -- Ignore pistols type and melee until "experienced" rank
+                        if actor_rank ~= "novice" and actor_rank ~= "trainee" then
+                            print_dbg("IsPistol or IsMelee")
+                            if item_backpack.is_in_slot(item) == true and math.random(1, 100) <=
+                                (keep_equipped_guns_chance * general_mod) then
                                 print_dbg("keep_equipped_guns_chance")
                             elseif math.random(1, 100) <=
                                 (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
@@ -637,20 +636,26 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                                 db.actor:transfer_item(item, obj)
                                 add_to_dropped_item_list(item, 'd', se_obj.id)
                             end
-                        elseif IsOutfit(item) or IsHeadgear(item) then
-                            print_dbg("IsOutfit")
-                            -- If killed by gun chance of losing equipped outfit is increased by by_gun_mod
-                            if math.random(1, 100) <= (keep_equipped_outfit_chance * general_mod) then
-                                print_dbg("keep_equipped_outfit_chance")
-                            elseif math.random(1, 100) <=
-                                (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
-                                alife_release(item)
-                                add_to_dropped_item_list(item, 'l', se_obj.id)
-                            else
-                                db.actor:transfer_item(item, obj)
-                                add_to_dropped_item_list(item, 'd', se_obj.id)
-                            end
-                        elseif not is_keeping_item then
+                    elseif IsWeapon(item) then
+                        print_dbg("IsWeapon")
+                        -- If killed by gun chance of losing equipped weapon is increased by by_gun_mod
+                        if item_backpack.is_in_slot(item) == true and math.random(1, 100) <= (keep_equipped_guns_chance * general_mod) then
+                            print_dbg("keep_equipped_guns_chance")
+                        elseif math.random(1, 100) <=
+                            (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
+                            alife_release(item)
+                            add_to_dropped_item_list(item, 'l', se_obj.id)
+                        else
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd', se_obj.id)
+                        end
+                    elseif IsOutfit(item) or IsHeadgear(item) then
+                        print_dbg("IsOutfit")
+                        -- If killed by gun chance of losing equipped outfit is increased by by_gun_mod
+                        if item_backpack.is_in_slot(item) == true and math.random(1, 100) <= (keep_equipped_outfit_chance * general_mod) then
+                            print_dbg("keep_equipped_outfit_chance")
+                        elseif math.random(1, 100) <=
+                            (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
                             alife_release(item)
                             add_to_dropped_item_list(item, 'l', se_obj.id)
                         else
