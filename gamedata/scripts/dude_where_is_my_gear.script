@@ -578,7 +578,6 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
         -- Drop money into dropped stash. by_gun_mod reduces by half amount of money to get back on stash.
         local money_left = math.random(math.floor(money_to_lose * 0.15),
             math.floor(money_to_lose * max_money_to_drop_percentage)) * by_gun_mod
-
         for _, denom in ipairs(denominations) do
             local num_items_to_create = math.floor(money_left / denom.value)
             money_left = money_left % denom.value
@@ -586,8 +585,8 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                 alife_create_item(denom.name, se_obj)
             end
         end
-
         print_dbg("Total money to lose: " .. money_to_lose)
+        
         local function transfer_items(id)
             local obj = level.object_by_id(id)
             if (obj) then
