@@ -220,18 +220,15 @@ local function create_report_msg_string(list_lost_only, stash_id)
     sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     local stash_items = sleep.dropped_stashes[stash_id] or nil
     local msg = ""
-    for i, v in ipairs(sleep.dropped_stashes) do
-        print_dbg("stash_items: %s %s" .. i .. " " .. v)
-    end
     if not list_lost_only and stash_items then
         for item_name, count in pairs(stash_items.last_dropped_item_list) do
-            msg = msg .. "- " .. item_name .. " x" .. count .. " stash_id " .. stash_id .. " \\n"
+            msg = msg .. "- " .. item_name .. " x" .. count .. " \\n"
             -- print_dbg("Dropped item: " .. item_name .. " x" .. count)
         end
     end
     if stash_items then
         for item_name, count in pairs(stash_items.last_lost_item_list) do
-            msg = msg .. "- " .. item_name .. " x" .. count .. " stash_id " .. stash_id .. " \\n"
+            msg = msg .. "- " .. item_name .. " x" .. count .. " \\n"
             -- print_dbg("Lost item: " .. item_name .. " x" .. count)
         end
     end
@@ -363,7 +360,6 @@ end
 function actor_on_before_death(who, flags)
     local current_time = time_global()
     if last_death_time < current_time then
-        print_dbg("set_last_death_time %s")
         last_death_time = current_time + 10000
         respawn_done = false
         sleep.last_death_time = last_death_time
@@ -623,7 +619,6 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                     if IsPistol(item) or IsMelee(item) then
                         -- Ignore pistols and melee type until "experienced" rank
                         if actor_rank ~= "novice" and actor_rank ~= "trainee" then
-                            print_dbg("IsPistol or IsMelee")
                             if item_backpack.is_in_slot(item) == true and math.random(1, 100) <=
                                 (keep_equipped_guns_chance * general_mod) then
                                 print_dbg("keep_equipped_guns_chance")
@@ -798,12 +793,11 @@ function on_before_save_input(flags, typ_, text)
         exec_console_cmd("main_menu off")
         flags.ret = true
         actor_menu.set_msg(1, error_message, 4)
-
     end
 end
+
 function save_state(mdata)
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
-
 end
 
 function load_state(mdata)
