@@ -582,7 +582,7 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
             end
         end
         print_dbg("Total money to lose: " .. money_to_lose)
-        
+
         local function transfer_items(id)
             local obj = level.object_by_id(id)
             if (obj) then
@@ -630,10 +630,12 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                                 db.actor:transfer_item(item, obj)
                                 add_to_dropped_item_list(item, 'd', se_obj.id)
                             end
+                        end
                     elseif IsWeapon(item) then
                         print_dbg("IsWeapon")
                         -- If killed by gun chance of losing equipped weapon is increased by by_gun_mod
-                        if item_backpack.is_in_slot(item) == true and math.random(1, 100) <= (keep_equipped_guns_chance * general_mod) then
+                        if item_backpack.is_in_slot(item) == true and math.random(1, 100) <=
+                            (keep_equipped_guns_chance * general_mod) then
                             print_dbg("keep_equipped_guns_chance")
                         elseif math.random(1, 100) <=
                             (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
@@ -646,7 +648,8 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                     elseif IsOutfit(item) or IsHeadgear(item) then
                         print_dbg("IsOutfit")
                         -- If killed by gun chance of losing equipped outfit is increased by by_gun_mod
-                        if item_backpack.is_in_slot(item) == true and math.random(1, 100) <= (keep_equipped_outfit_chance * general_mod) then
+                        if item_backpack.is_in_slot(item) == true and math.random(1, 100) <=
+                            (keep_equipped_outfit_chance * general_mod) then
                             print_dbg("keep_equipped_outfit_chance")
                         elseif math.random(1, 100) <=
                             (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
