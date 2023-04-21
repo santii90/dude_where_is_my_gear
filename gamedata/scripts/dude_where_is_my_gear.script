@@ -772,6 +772,7 @@ function save_position(stash_data)
         sleep.type = "sleep"
     end
     local save_message = strformat("Respawn point set.", text)
+    exec_console_cmd("main_menu off")
     actor_menu.set_msg(1, save_message, 4)
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 end
@@ -819,6 +820,10 @@ end
 
 function on_before_save_input(flags, typ_, text)
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    local nearby_campfire = bind_campfire.get_nearby_campfire(10, true)
+    if not nearby_campfire then
+        return
+    end
     if use_campfire_respawn then
         print_dbg("SET POSITION on CAMPFIRE")
         sleep.sleep_created = true;
