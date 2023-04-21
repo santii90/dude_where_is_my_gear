@@ -171,7 +171,7 @@ local function determine_main_cause_of_death(hits)
         main_cause_of_death = "radiation"
     elseif top_cause == 4 then
         main_cause_of_death = "telepatic"
-    elseif top_cause == 5 or top_cause == 7 then
+    elseif top_cause == 5 then
         main_cause_of_death = "beast"
     elseif top_cause == 8 then
         main_cause_of_death = "explosion"

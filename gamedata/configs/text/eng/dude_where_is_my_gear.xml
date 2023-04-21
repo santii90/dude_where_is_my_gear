@@ -26,7 +26,7 @@
 	</string>
 
 	<string id="ui_mcm_dude_where_is_my_gear_drop_all_money_desc">
-		<text>All your money is dropped, thi</text>
+		<text>All your money is dropped, this ignores max above 2 silders related to money</text>
 	</string>
 
 	<string id="ui_mcm_dude_where_is_my_gear_lose_item_condition">
