@@ -25,6 +25,7 @@ local use_kill_type_mod
 local use_rank_mod
 local actor_rep
 local actor_rank
+local use_campfire_respawn
 local sleep = {
     level = false,
     position = false,
@@ -265,6 +266,7 @@ function load_settings()
     lose_item_condition = Dude_where_is_my_gear_mcm.get_config("lose_item_condition")
     keep_equipped_guns_chance = Dude_where_is_my_gear_mcm.get_config("keep_equipped_guns_chance")
     keep_equipped_outfit_chance = Dude_where_is_my_gear_mcm.get_config("keep_equipped_outfit_chance")
+    keep_misc_items_chance = Dude_where_is_my_gear_mcm.get_config("keep_misc_items_chance")
     full_heal_chance = Dude_where_is_my_gear_mcm.get_config("full_heal_chance")
     full_satiety_chance = Dude_where_is_my_gear_mcm.get_config("full_satiety_chance")
     meal_chance = Dude_where_is_my_gear_mcm.get_config("meal_chance")
@@ -274,6 +276,7 @@ function load_settings()
     remove_previous_stash = Dude_where_is_my_gear_mcm.get_config("remove_previous_stash")
     use_kill_type_mod = Dude_where_is_my_gear_mcm.get_config("use_kill_type_mod")
     use_rank_mod = Dude_where_is_my_gear_mcm.get_config("use_rank_mod")
+    use_campfire_respawn = Dude_where_is_my_gear_mcm.get_config("use_campfire_respawn")
 end
 
 function on_game_start()
@@ -779,6 +782,9 @@ function actor_on_sleep()
 end
 
 function actor_on_stash_create(stash_data)
+    if use_campfire_respawn then
+        return
+    end
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     sleep.stash_created = true;
     save_position(stash_data)
@@ -808,6 +814,12 @@ function actor_on_save()
 end
 
 function on_before_save_input(flags, typ_, text)
+    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    if use_campfire_respawn then
+        print_dbg("SET POSITION on CAMPFIRE")
+        sleep.sleep_created = true;
+        save_position()
+    end
     if not campfire_save then
         local error_message = strformat("Campfire save not allowed.", text)
         -- always prevent saving.
@@ -836,7 +848,7 @@ function on_tutor_gameover_respawn()
         (sleep.stash_save and sleep.stash_save.posX and sleep.stash_save.level and
             (sleep.stash_save.level ~= level.name())) then
         print_dbg("SAME LEVEL TELEPORT")
-        if sleep.stash_created then
+        if sleep.stash_created and not use_campfire_respawn then
             local player_vector_x = sleep.stash_save.posX
             local player_vector_y = sleep.stash_save.posY
             local player_vector_z = sleep.stash_save.posZ
@@ -853,7 +865,7 @@ function on_tutor_gameover_respawn()
         local player_lvid = db.actor:level_vertex_id()
         local player_gvid = db.actor:game_vertex_id()
         print_dbg("DIFFERENT LEVEL TELEPORT")
-        if sleep.stash_created then
+        if sleep.stash_created and not use_campfire_respawn then
             local player_vector_x = sleep.stash_save.posX
             local player_vector_y = sleep.stash_save.posY
             local player_vector_z = sleep.stash_save.posZ

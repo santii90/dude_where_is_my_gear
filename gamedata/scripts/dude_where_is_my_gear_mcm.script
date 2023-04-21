@@ -23,6 +23,7 @@ function on_mcm_load()
             {id = "remove_previous_stash",              type = "check", val = 1, def = false},
             {id = "use_kill_type_mod",                  type = "check", val = 1, def = true},
             {id = "use_rank_modifier",                  type = "check", val = 1, def = true},
+            {id = "use_campfire_respawn",               type = "check", val = 1, def = false},
 		}
     }
     return op
@@ -50,6 +51,7 @@ local defaults = {
     ["remove_previous_stash"] = false,
     ["use_kill_type_mod"] = true,
     ["use_rank_modifier"] = true,
+    ["use_campfire_respawn"] = false,
 }
     
 function get_config(key)
