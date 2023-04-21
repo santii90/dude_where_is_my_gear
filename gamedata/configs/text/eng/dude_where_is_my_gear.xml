@@ -62,7 +62,7 @@
 	</string>
 
 	<string id="ui_mcm_dude_where_is_my_gear_keep_misc_items_chance">
-		<text>Chance of keeping other kind of items</text>
+		<text>Chance of keeping remaining items</text>
 	</string>
 
 	<string id="ui_mcm_dude_where_is_my_gear_full_heal_chance">
@@ -106,11 +106,11 @@
 	</string>
 
 	<string id="ui_mcm_dude_where_is_my_gear_use_campfire_respawn">
-		<text>Respawns point are set at campfires [BETA]</text>
+		<text>Respawn point at campfire only [BETA]</text>
 	</string>
 
 	<string id="ui_mcm_dude_where_is_my_gear_use_campfire_respawn_desc">
-		<text>Do not use stashes as respawn point, only last fireplace or sleep place.</text>
+		<text>Set respawn point only by saving at campfires.</text>
 	</string>
 
 </string_table>

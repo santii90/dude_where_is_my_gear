@@ -613,9 +613,6 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                         return
                     end
 
-                    if is_keeping_item then
-                        return
-                    end
 
                     if item_id == b_id or keep_items[section] ~= nil then
                         return
@@ -637,6 +634,11 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                         end
                         item:set_condition(condition)
                     end
+
+                    if is_keeping_item then
+                        return
+                    end
+
                     if IsPistol(item) or IsMelee(item) then
                         -- Ignore pistols and melee type until "experienced" rank
                         if actor_rank ~= "novice" and actor_rank ~= "trainee" then
@@ -769,12 +771,14 @@ function save_position(stash_data)
         sleep.sleep_created = true
         sleep.type = "sleep"
     end
+    local save_message = strformat("Respawn point set.", text)
+    actor_menu.set_msg(1, save_message, 4)
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 end
 
 function actor_on_sleep()
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    if not sleep.stash_created or sleep.stash_created == false then
+    if not use_campfire_respawn and not sleep.stash_created or sleep.stash_created == false then
         print_dbg("SET POSITION on SLEEP")
         sleep.sleep_created = true;
         save_position()
