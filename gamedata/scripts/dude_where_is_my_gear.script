@@ -603,7 +603,14 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                     local section = item:section()
                     local item_id = item:id()
 
+                    local is_keeping_item = math.random(1, 100) <= keep_misc_items_chance * general_mod
+                    local is_not_losing_item = math.random(1, 100) >= chance_of_losing_items / general_mod
+
                     if ignore_items[section] then
+                        return
+                    end
+
+                    if is_keeping_item then
                         return
                     end
 
@@ -615,7 +622,6 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                         return
                     end
 
-                    local is_keeping_item = math.random(1, 100) >= chance_of_losing_items / general_mod
                     -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
                     if lose_item_condition then
                         local condition = item:condition()
@@ -698,7 +704,7 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                             db.actor:transfer_item(item, obj)
                             add_to_dropped_item_list(item, 'd', se_obj.id)
                         end
-                    elseif not is_keeping_item then
+                    elseif not is_not_losing_item then
                         alife_release(item)
                         add_to_dropped_item_list(item, 'l', se_obj.id)
                     else
