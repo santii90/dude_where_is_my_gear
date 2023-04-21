@@ -5,6 +5,7 @@ still you'll have the opportunity of getting some of your gear back if you retur
 You'll lose a % of money and also equipped items will lose condition when you drop them.
 --]] local max_money_percentage
 local max_money_to_drop_percentage
+local drop_all_money
 local max_condition_lose
 local min_condition_lose
 local enable_time_forward
@@ -15,6 +16,7 @@ local keep_equipped_guns_ammo_chance
 local lose_item_condition
 local keep_equipped_guns_chance
 local keep_equipped_outfit_chance
+local keep_misc_items_chance
 local chance_of_losing_items
 local always_wake_up_daytime
 local campfire_save
@@ -255,6 +257,7 @@ end
 function load_settings()
     max_money_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_percentage")
     max_money_to_drop_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_to_drop_percentage")
+    drop_all_money = Dude_where_is_my_gear_mcm.get_config("drop_all_money")
     max_condition_lose = Dude_where_is_my_gear_mcm.get_config("max_condition_lose")
     min_condition_lose = Dude_where_is_my_gear_mcm.get_config("min_condition_lose")
     enable_time_forward = Dude_where_is_my_gear_mcm.get_config("enable_time_forward")
@@ -563,17 +566,26 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
         }, {
             name = "money_10",
             value = 10
+        }, {
+            name = "roubles",
+            value = 1
         }}
         local current_money = actor:money()
         -- /by_gun_mod if killed by gun duplicates max amount of money to lost.
         -- /by_beast_mod if killed by beast reduce by half max amount of money to lost.
         local money_to_lose = math.random(0, math.floor(current_money * max_money_percentage / by_gun_mod)) *
                                   by_beast_mod
-        db.actor:give_money(-money_to_lose)
 
-        -- Drop money into dropped stash. by_gun_mod reduces by half amount of money to get back on stash.
-        local money_left = math.random(math.floor(money_to_lose * 0.15),
-            math.floor(money_to_lose * max_money_to_drop_percentage)) * by_gun_mod
+        -- Drop money into dropped stash. by_gun_mod reduces by half amount of money to get back on stash. drop_all_money
+        local money_left = 0
+        if drop_all_money then
+            money_left = current_money
+            db.actor:give_money(-current_money)
+        else
+            db.actor:give_money(-money_to_lose)
+            money_left = math.random(math.floor(money_to_lose * 0.15),
+                math.floor(money_to_lose * max_money_to_drop_percentage)) * by_gun_mod
+        end
         for _, denom in ipairs(denominations) do
             local num_items_to_create = math.floor(money_left / denom.value)
             money_left = money_left % denom.value

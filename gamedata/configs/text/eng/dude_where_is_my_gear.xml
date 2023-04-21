@@ -8,6 +8,7 @@
     <string id="ui_mcm_dude_where_is_my_gear_max_money_percentage">
 		<text>Max percentage of money that can be lost.</text>
 	</string>
+
 	<string id="ui_mcm_dude_where_is_my_gear_max_money_percentage_desc">
 		<text>This dictates the max pecentage of money that will be removed from your balance</text>
 	</string>
@@ -18,6 +19,14 @@
     
 	<string id="ui_mcm_dude_where_is_my_gear_max_money_to_drop_percentage_desc">
 		<text>Max percentage of money that will be added to the drop backpack from the lost money.</text>
+	</string>
+	
+	<string id="ui_mcm_dude_where_is_my_gear_drop_all_money">
+		<text>Never lose money but drop it all</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_drop_all_money_desc">
+		<text>All your money is dropped, thi</text>
 	</string>
 
 	<string id="ui_mcm_dude_where_is_my_gear_lose_item_condition">
@@ -50,6 +59,10 @@
 
 	<string id="ui_mcm_dude_where_is_my_gear_keep_equipped_outfit_chance">
 		<text>Chance of keeping equipped outfit and headgear</text>
+	</string>
+
+	<string id="ui_mcm_dude_where_is_my_gear_keep_misc_items_chance">
+		<text>Chance of keeping other kind of items</text>
 	</string>
 
 	<string id="ui_mcm_dude_where_is_my_gear_full_heal_chance">
