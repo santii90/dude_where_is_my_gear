@@ -62,24 +62,24 @@ local ranks_mods = {
     ["master"] = 0.85,
     ["legend"] = 0.75
 }
+local actor_last_health = 1
 
 -- Utils
 local function add_hit_record(shit)
     last_attack_time = time_global()
-    table.insert(death_last_attacks, {htype = shit.type, hpower = shit.power})
+    table.insert(death_last_attacks, {
+        htype = shit.type,
+        hpower = shit.power
+    })
     if #death_last_attacks > 35 then
         table.remove(death_last_attacks, 1)
     end
-    print_dbg("------------------ Current HIT Table")
-    for i, v in ipairs(death_last_attacks) do
-        print_dbg("hit: %s - %s", v.htype, v.hpower)
-    end
-    print_dbg("------------------")
 end
 
 local function check_attack_history_expiration()
     if last_attack_time + 75000 < time_global() then
         death_last_attacks = {}
+        actor_last_health = 1
         print_dbg("ATTACK HISTORY CLEARED")
     end
 end
@@ -108,36 +108,32 @@ local function count_death_hit_by_type(hits)
 end
 
 -- Thanks ChatGPT
-local function getTop3Hits(counts)
-    -- Create a new table to store the sorted counts
-    local sortedCounts = {}
-
-    -- Iterate over the key-value pairs in the counts table and add them to the sortedCounts table
-    for key, value in pairs(counts) do
-        table.insert(sortedCounts, {
-            key = key,
-            count = value
-        })
+local function get_top_hits(hit_counts)
+    local max_hit_count = 0
+    local top_hits = {}
+    for k, v in pairs(hit_counts) do
+        if v > max_hit_count then
+            max_hit_count = v
+        end
     end
-
-    -- Sort the sortedCounts table by count in descending order
-    table.sort(sortedCounts, function(a, b)
-        return a.count > b.count
-    end)
-
-    -- Create a new table to store the top 3 hits
-    local top3Hits = {}
-
-    -- Add the top 3 counts to the top3Hits table
-    for i = 1, 3 do
-        if sortedCounts[i] ~= nil then
-            table.insert(top3Hits, sortedCounts[i])
+    for k, v in pairs(hit_counts) do
+        if v >= (max_hit_count * 0.2) then
+            top_hits[k] = v
         end
     end
 
-    -- Return the top3Hits table
-    return top3Hits
+    local sorted_hits = {}
+    for k, v in pairs(top_hits) do
+        table.insert(sorted_hits, {htype = k, hvalue = v})
+    end
+
+    table.sort(sorted_hits, function(a, b) return a.hvalue > b.hvalue end)
+    for k, v in pairs(sorted_hits) do
+        print_dbg("hit type: " .. v.htype .. " hit value: " .. v.hvalue)
+    end
+    return sorted_hits
 end
+
 
 local function define_rank_modifier(actor_rank)
     local rank_modifier = 1
@@ -165,27 +161,33 @@ local HitTypeID = {
 
 local function determine_main_cause_of_death(hits)
     local hit_counts = count_death_hit_by_type(hits)
-    local top3_hits = getTop3Hits(hit_counts)
-    local top_cause = top3_hits[1].key
-    local main_cause_of_death = "unknown"
-    if top_cause == 6 or top_cause == 9 then
-        main_cause_of_death = "gun"
-    elseif top_cause == 0 or top_cause == 1 or top_cause == 2 then
-        main_cause_of_death = "elemental"
-    elseif top_cause == 3 then
-        main_cause_of_death = "radiation"
-    elseif top_cause == 4 then
-        main_cause_of_death = "telepatic"
-    elseif top_cause == 5 then
-        main_cause_of_death = "beast"
-    elseif top_cause == 8 then
-        main_cause_of_death = "explosion"
+    local top3_hits = get_top_hits(hit_counts)
+    local main_cause_of_death = {}
+
+    for i, hit in ipairs(top3_hits) do
+        if hit.htype == 6 or hit.htype == 9 then
+            table.insert(main_cause_of_death, "gun")
+        elseif hit.htype == 0 or hit.htype == 1 or hit.htype == 2 then
+            table.insert(main_cause_of_death, "elemental")
+        elseif hit.htype == 3 then
+            table.insert(main_cause_of_death, "radiation")
+        elseif hit.htype == 4 then
+            table.insert(main_cause_of_death, "telepatic")
+        elseif hit.htype == 5 then
+            table.insert(main_cause_of_death, "beast")
+        elseif hit.htype == 7 then
+            table.insert(main_cause_of_death, "bruises")
+        elseif hit.htype == 8 then
+            table.insert(main_cause_of_death, "explosion")
+        else
+            table.insert(main_cause_of_death, "unknown")
+        end
     end
 
     return main_cause_of_death
 end
 
-local function removeValueFromArray(array, valueToRemove)
+local function remove_value_from_array(array, valueToRemove)
     local newArray = {}
     for i, v in ipairs(array) do
         if v ~= valueToRemove then
@@ -194,6 +196,27 @@ local function removeValueFromArray(array, valueToRemove)
     end
     return newArray
 end
+
+local function table_includes_value(tbl, val)
+    for i, v in ipairs(tbl) do
+        if v == val then
+            return true
+        end
+    end
+    return false
+end
+
+local function table_to_string(tbl)
+    local str = ""
+    for i, v in ipairs(tbl) do
+        if i > 1 then
+            str = str .. ", "
+        end
+        str = str .. v
+    end
+    return str
+end
+
 
 local function add_to_dropped_item_list(item, status, stash_id)
     sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
@@ -315,6 +338,7 @@ function on_game_load()
         sleep.last_lost_item_list = {}
     end
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
+    actor_last_health = db.actor.health
 end
 
 function print_dbg(text, ...)
@@ -326,9 +350,11 @@ end
 function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    check_attack_history_expiration()
-    add_hit_record(shit)
-    print_dbg("CURRENT COUNT_DEATH: %s", determine_main_cause_of_death(death_last_attacks))
+    if actor_last_health > db.actor.health then
+        check_attack_history_expiration()
+        add_hit_record(shit)
+        actor_last_health = db.actor.health
+    end
     if sleep and sleep.last_death_time then
         local invulnerable_time = sleep.last_death_time + 65000
         if invulnerable_time < current_time then
@@ -484,8 +510,10 @@ function actor_on_before_death(who, flags)
             global_healing = healing
             global_satiety = satiety
             global_power = power
+            local wounds_list_str = table_to_string(final_cause_of_death)
+            wounds_list_str = wounds_list_str:gsub(",([^,]+)$", " and%1")
             db.actor:give_game_news("Recovery",
-                tostring("You got took out by " .. final_cause_of_death .. " and now feel better " ..
+                tostring("You're finally awake, you have been treated for " .. wounds_list_str .. " and now feel slightly better " ..
                              math.floor(global_healing * 100 + 0.5) .. "% of health " ..
                              math.floor(global_satiety * 100 + 0.5) .. "% Satiety"), "ui_inGame2_neutral_2_mask", 0,
                 20000)
@@ -555,13 +583,11 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
         if (use_rank_mod) then
             general_mod = define_rank_modifier(actor_rank)
         end
-        if (use_kill_type_mod and final_cause_of_death == "gun") then
+        if (use_kill_type_mod and table_includes_value(final_cause_of_death)) then
             by_gun_mod = 0.5
-        end
-        if (use_kill_type_mod and final_cause_of_death == "elemental") then
+        elseif (use_kill_type_mod and final_cause_of_death[1] == "elemental") then
             condition_mod = 0.75
-        end
-        if (use_kill_type_mod and final_cause_of_death == "beast") then
+        elseif (use_kill_type_mod and final_cause_of_death[1] == "beast") then
             by_beast_mod = 0.5
         end
 
@@ -618,7 +644,6 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                     if ignore_items[section] then
                         return
                     end
-
 
                     if item_id == b_id or keep_items[section] ~= nil then
                         return
