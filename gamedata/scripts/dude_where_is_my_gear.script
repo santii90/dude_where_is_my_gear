@@ -64,16 +64,21 @@ local ranks_mods = {
 }
 
 -- Utils
-local function add_hit_record(shit_type)
+local function add_hit_record(shit)
     last_attack_time = time_global()
-    table.insert(death_last_attacks, shit_type)
-    if #death_last_attacks > 25 then
+    table.insert(death_last_attacks, {htype = shit.type, hpower = shit.power})
+    if #death_last_attacks > 35 then
         table.remove(death_last_attacks, 1)
     end
+    print_dbg("------------------ Current HIT Table")
+    for i, v in ipairs(death_last_attacks) do
+        print_dbg("hit: %s - %s", v.htype, v.hpower)
+    end
+    print_dbg("------------------")
 end
 
 local function check_attack_history_expiration()
-    if last_attack_time + 90000 < time_global() then
+    if last_attack_time + 75000 < time_global() then
         death_last_attacks = {}
         print_dbg("ATTACK HISTORY CLEARED")
     end
@@ -94,9 +99,9 @@ local function count_death_hit_by_type(hits)
         [10] = 0
     }
     -- iterate over the hits array and count the hit types
-    for _, hit_type in ipairs(hits) do
-        if hit_counts[hit_type] ~= nil then
-            hit_counts[hit_type] = hit_counts[hit_type] + 1
+    for _, hit in ipairs(hits) do
+        if hit_counts[hit.htype] ~= nil then
+            hit_counts[hit.htype] = hit_counts[hit.htype] + hit.hpower
         end
     end
     return hit_counts
@@ -322,7 +327,8 @@ function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     check_attack_history_expiration()
-    add_hit_record(shit.type)
+    add_hit_record(shit)
+    print_dbg("CURRENT COUNT_DEATH: %s", determine_main_cause_of_death(death_last_attacks))
     if sleep and sleep.last_death_time then
         local invulnerable_time = sleep.last_death_time + 65000
         if invulnerable_time < current_time then
