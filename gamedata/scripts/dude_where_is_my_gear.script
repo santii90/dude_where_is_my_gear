@@ -124,16 +124,20 @@ local function get_top_hits(hit_counts)
 
     local sorted_hits = {}
     for k, v in pairs(top_hits) do
-        table.insert(sorted_hits, {htype = k, hvalue = v})
+        table.insert(sorted_hits, {
+            htype = k,
+            hvalue = v
+        })
     end
 
-    table.sort(sorted_hits, function(a, b) return a.hvalue > b.hvalue end)
+    table.sort(sorted_hits, function(a, b)
+        return a.hvalue > b.hvalue
+    end)
     for k, v in pairs(sorted_hits) do
         print_dbg("hit type: " .. v.htype .. " hit value: " .. v.hvalue)
     end
     return sorted_hits
 end
-
 
 local function define_rank_modifier(actor_rank)
     local rank_modifier = 1
@@ -216,7 +220,6 @@ local function table_to_string(tbl)
     end
     return str
 end
-
 
 local function add_to_dropped_item_list(item, status, stash_id)
     sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
@@ -513,10 +516,10 @@ function actor_on_before_death(who, flags)
             local wounds_list_str = table_to_string(final_cause_of_death)
             wounds_list_str = wounds_list_str:gsub(",([^,]+)$", " and%1")
             db.actor:give_game_news("Recovery",
-                tostring("You're finally awake, you have been treated for " .. wounds_list_str .. " and now feel slightly better " ..
-                             math.floor(global_healing * 100 + 0.5) .. "% of health " ..
-                             math.floor(global_satiety * 100 + 0.5) .. "% Satiety"), "ui_inGame2_neutral_2_mask", 0,
-                20000)
+                tostring(
+                    "You're finally awake, you have been treated for " .. wounds_list_str ..
+                        " and now feel slightly better " .. math.floor(global_healing * 100 + 0.5) .. "% of health " ..
+                        math.floor(global_satiety * 100 + 0.5) .. "% Satiety"), "ui_inGame2_neutral_2_mask", 0, 20000)
         end
 
         if currently_respawning == 4 then
@@ -719,7 +722,16 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                             add_to_dropped_item_list(item, 'd', se_obj.id)
                         end
                     elseif string.match(item:section(), "^mag_") then
-                        -- Partial compatibility with MagsRedux (always keep all the mags)
+                        local is_carried_mag = magazine_binder and magazine_binder.is_carried_mag
+                        local toggle_carried_mag = magazine_binder and magazine_binder.toggle_carried_mag
+                        local is_magazine = magazine_binder and magazine_binder.is_magazine
+                        if is_magazine(item:section()) and is_carried_mag(item:id()) then
+                            toggle_carried_mag(item:id())
+                        end
+                        if math.random(1, 100) >= (keep_equipped_guns_ammo_chance / by_gun_mod * general_mod) then
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd', se_obj.id)
+                        end
                     elseif isMedicalKind(item) then
                         -- If killed by gun chance of losing medical items is increased by by_gun_mod
                         if math.random(1, 100) <=
