@@ -38,7 +38,9 @@ local sleep = {
     stash_save = {},
     dropped_stashes = {},
     last_dropped_item_list = {},
-    last_lost_item_list = {}
+    last_lost_item_list = {},
+    health_status_msg = "",
+    wounds_status_msg = ""
 }
 local currently_respawning = nil
 local last_death_time = 0
@@ -340,6 +342,11 @@ function on_game_load()
         sleep.last_dropped_item_list = {}
         sleep.last_lost_item_list = {}
     end
+    if sleep and sleep.dead then
+        sleep.dead = false
+        db.actor:give_game_news("Recovery", sleep.wounds_status_msg, "ui_inGame2_neutral_2_mask", 15000, 20000)
+        db.actor:give_game_news("Severe Injured", sleep.health_status_msg, "ui_inGame2_neutral_2_mask", 5000, 20000)
+    end
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     actor_last_health = db.actor.health
 end
@@ -371,7 +378,6 @@ function actor_on_before_hit(shit, bone_id, flag)
                 shit.power = 0
                 db.actor.health = global_healing
             end
-
         end
     end
 end
@@ -478,7 +484,7 @@ function actor_on_before_death(who, flags)
         if math.random(1, 100) <= full_satiety_chance then
             satiety = 1
         else
-            -- Logic: actor can get a meal every 6 hours 
+            -- Logic: actor can get a meal every 6 hours
             if satiety_minus_per_hour * p[1] >= satiety then
                 satiety = 0.2
             else
@@ -497,12 +503,11 @@ function actor_on_before_death(who, flags)
 
         if currently_respawning == 2 then
             print_dbg("currently_respawning if 2 %s", currently_respawning)
+            sleep.health_status_msg = "You have been out of action for a while"
             if enable_time_forward then
                 xr_effects.forward_game_time(nil, nil, p)
-                -- level.change_game_time(0, p[1], 0)
-                local forward_text = tostring("You have been out of action for " .. p[1] .. " Hours and " .. p[2] ..
-                                                  " Minutes")
-                db.actor:give_game_news("Severe Injured", forward_text, "ui_inGame2_neutral_2_mask", 0, 20000)
+                sleep.health_status_msg = tostring(
+                    "You have been out of action for " .. p[1] .. " Hours and " .. p[2] .. " Minutes")
             end
             currently_respawning = 3
         end
@@ -515,11 +520,10 @@ function actor_on_before_death(who, flags)
             global_power = power
             local wounds_list_str = table_to_string(final_cause_of_death)
             wounds_list_str = wounds_list_str:gsub(",([^,]+)$", " and%1")
-            db.actor:give_game_news("Recovery",
-                tostring(
-                    "You're finally awake, you have been treated for " .. wounds_list_str ..
-                        " and now feel slightly better " .. math.floor(global_healing * 100 + 0.5) .. "% of health " ..
-                        math.floor(global_satiety * 100 + 0.5) .. "% Satiety"), "ui_inGame2_neutral_2_mask", 0, 20000)
+            sleep.wounds_status_msg = tostring("You're finally awake, you have been treated for " .. wounds_list_str ..
+                                                   " and now feel slightly better " ..
+                                                   math.floor(global_healing * 100 + 0.5) .. "% of health " ..
+                                                   math.floor(global_satiety * 100 + 0.5) .. "% Satiety")
         end
 
         if currently_respawning == 4 then
@@ -541,6 +545,7 @@ function actor_on_before_death(who, flags)
     db.actor.power = global_power
     arszi_psy.set_psy_health(1)
     flags.ret_value = false
+    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 end
 
 keep_items = nil
@@ -760,11 +765,6 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                         add_to_dropped_item_list(item, 'd', se_obj.id)
                     end
                 end
-                -- table.insert(sleep.dropped_stashes, {
-                --     s_id = se_obj.id,
-                --     last_dropped_item_list = sleep.last_dropped_item_list,
-                --     last_lost_item_list = sleep.last_lost_item_list
-                -- })
                 print_dbg("Dropped stash %s", se_obj.id)
                 db.actor:iterate_inventory(itr_inv)
                 send_items_report_news_msg(false, se_obj.id)
@@ -852,13 +852,8 @@ function actor_on_stash_remove(stash_data)
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 end
 
--- NOT WORKING, NEED TO FIGURE OUT ANOTHER APPROACH
 function actor_on_save()
-    -- print_dbg("ON SAVE | %s %s", sleep.stash_created, sleep.sleep_created)
-    -- if sleep.stash_created == false and sleep.sleep_created == false then
-    --     print_dbg("SET POSITION on SAVE")
-    --     save_position()
-    -- end
+
 end
 
 function on_before_save_input(flags, typ_, text)
@@ -933,38 +928,27 @@ function on_tutor_gameover_respawn()
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
         print_dbg("LONER TELEPORT")
         xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
-
     elseif db.actor:character_community() == "actor_army" then -- if military >>
         xr_effects.change_level_now(vector():set(-123.26, -28.4, -379.96), 133511, 450, VEC_ZERO, true) -- southern checkpoint
-
     elseif db.actor:character_community() == "actor_bandit" then -- if bandit >>
         xr_effects.change_level_now(vector():set(20.72, 7.85, -42.93), 189149, 1515, VEC_ZERO, true) -- northern factory
-
     elseif db.actor:character_community() == "actor_csky" then -- if clear sky >>
         xr_effects.change_level_now(vector():set(-140.56, 1.5, -317.99), 75660, 136, VEC_ZERO, true) -- hidden base
-
     elseif db.actor:character_community() == "actor_dolg" then -- if duty >>
         xr_effects.change_level_now(vector():set(229.09, -5.449, 128.31), 59298, 1704, VEC_ZERO, true) -- duty headquarter
-
     elseif db.actor:character_community() == "actor_ecolog" then -- if ecologist >>
         xr_effects.change_level_now(vector():set(28.96, -10.05, -280.12), 78646, 2281, VEC_ZERO, true) -- sakharovs bunker
-
     elseif db.actor:character_community() == "actor_freedom" then -- if freedom >>
         xr_effects.change_level_now(vector():set(-18.02, -2.46, -31.74), 274912, 2092, VEC_ZERO, true) -- military base
-
     elseif db.actor:character_community() == "actor_killer" then -- if mercenary >>
         xr_effects.change_level_now(vector():set(-56.6, 8.92, 37.57), 96425, 2367, VEC_ZERO, true) -- sports center
-
     elseif db.actor:character_community() == "actor_monolith" then -- if monolith >>
         xr_effects.change_level_now(vector():set(-3.59, -3.50, 189.80), 98087, 3069, VEC_ZERO, true) -- cultural center
-
     elseif db.actor:character_community() == "actor_monolith" then -- if sin >>
         xr_effects.change_level_now(vector():set(-152.36056518555, 2.2933793067932, -26.791021347046), 5570, 2772,
             VEC_ZERO, true) -- red forest old mine
-
     elseif db.actor:character_community() == "actor_monolith" then -- if renegade >>
         xr_effects.change_level_now(vector():set(-179.78, 4.13, 417.23), 52100, 80, VEC_ZERO, true) -- tuzla outpost
-
     else -- if unisg/ other >>
         xr_effects.change_level_now(vector():set(136.32, 28.9, 240.395), 348892, 4920, VEC_ZERO, true) -- hideout in outskirts
     end
