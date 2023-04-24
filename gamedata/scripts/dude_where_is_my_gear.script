@@ -718,7 +718,7 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                             add_to_dropped_item_list(item, 'd', se_obj.id)
                         end
                     elseif item_backpack.is_ammo_for_wpn(item:section()) == true then
-                        if math.random(1, 100) > (keep_equipped_guns_ammo_chance * general_mod) then
+                        if math.random(1, 100) <= (keep_equipped_guns_ammo_chance * general_mod) then
                             return
                         elseif math.random(1, 100) <=
                             (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
@@ -735,7 +735,7 @@ function drop_stash(final_cause_of_death, actor_rank, actor_rep)
                         if is_magazine(item:section()) and is_carried_mag(item:id()) then
                             toggle_carried_mag(item:id())
                         end
-                        if math.random(1, 100) > (keep_equipped_guns_ammo_chance * general_mod) then
+                        if math.random(1, 100) <= (keep_equipped_guns_ammo_chance * general_mod) then
                             return
                         elseif math.random(1, 100) <=
                             (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
