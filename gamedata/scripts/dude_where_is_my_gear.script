@@ -5,6 +5,7 @@ still you'll have the opportunity of getting some of your gear back if you retur
 You'll lose a % of money and also equipped items will lose condition when you drop them.
 --]] local max_money_percentage
 local max_money_to_drop_percentage
+local drop_all_money
 local max_condition_lose
 local min_condition_lose
 local enable_time_forward
@@ -15,9 +16,16 @@ local keep_equipped_guns_ammo_chance
 local lose_item_condition
 local keep_equipped_guns_chance
 local keep_equipped_outfit_chance
+local keep_misc_items_chance
 local chance_of_losing_items
+local always_wake_up_daytime
 local campfire_save
-local always_wake_up_daytime = true
+local remove_previous_stash
+local use_kill_type_mod
+local use_rank_mod
+local actor_rep
+local actor_rank
+local use_campfire_respawn
 local sleep = {
     level = false,
     position = false,
@@ -27,7 +35,12 @@ local sleep = {
     stash_created = false,
     sleep_created = false,
     last_death_time = 0,
-    stash_save = {}
+    stash_save = {},
+    dropped_stashes = {},
+    last_dropped_item_list = {},
+    last_lost_item_list = {},
+    health_status_msg = "",
+    wounds_status_msg = ""
 }
 local currently_respawning = nil
 local last_death_time = 0
@@ -37,10 +50,248 @@ local global_satiety = 1
 local global_power = 1
 local invulnerability = false
 local options_vol = 1
+local death_last_attacks = {}
+local last_attack_time = 0
+local rep_lvls = {"terrible", "really_bad", "very_bad", "bad", "neutral", "good", "very_good", "really_good",
+                  "excellent"}
+local ranks_mods = {
+    ["novice"] = 1.8,
+    ["trainee"] = 1.65,
+    ["experienced"] = 1.45,
+    ["professional"] = 1.35,
+    ["veteran"] = 1.1,
+    ["expert"] = 0.95,
+    ["master"] = 0.85,
+    ["legend"] = 0.75
+}
+local actor_last_health = 1
+
+-- Utils
+local function add_hit_record(shit)
+    last_attack_time = time_global()
+    table.insert(death_last_attacks, {
+        htype = shit.type,
+        hpower = shit.power
+    })
+    if #death_last_attacks > 35 then
+        table.remove(death_last_attacks, 1)
+    end
+end
+
+local function check_attack_history_expiration()
+    if last_attack_time + 75000 < time_global() then
+        death_last_attacks = {}
+        actor_last_health = 1
+        print_dbg("ATTACK HISTORY CLEARED")
+    end
+end
+
+local function count_death_hit_by_type(hits)
+    local hit_counts = {
+        [0] = 0,
+        [1] = 0,
+        [2] = 0,
+        [3] = 0,
+        [4] = 0,
+        [5] = 0,
+        [6] = 0,
+        [7] = 0,
+        [8] = 0,
+        [9] = 0,
+        [10] = 0
+    }
+    -- iterate over the hits array and count the hit types
+    for _, hit in ipairs(hits) do
+        if hit_counts[hit.htype] ~= nil then
+            hit_counts[hit.htype] = hit_counts[hit.htype] + hit.hpower
+        end
+    end
+    return hit_counts
+end
+
+-- Thanks ChatGPT
+local function get_top_hits(hit_counts)
+    local max_hit_count = 0
+    local top_hits = {}
+    for k, v in pairs(hit_counts) do
+        if v > max_hit_count then
+            max_hit_count = v
+        end
+    end
+    for k, v in pairs(hit_counts) do
+        if v >= (max_hit_count * 0.2) then
+            top_hits[k] = v
+        end
+    end
+
+    local sorted_hits = {}
+    for k, v in pairs(top_hits) do
+        table.insert(sorted_hits, {
+            htype = k,
+            hvalue = v
+        })
+    end
+
+    table.sort(sorted_hits, function(a, b)
+        return a.hvalue > b.hvalue
+    end)
+    for k, v in pairs(sorted_hits) do
+        print_dbg("hit type: " .. v.htype .. " hit value: " .. v.hvalue)
+    end
+    return sorted_hits
+end
+
+local function define_rank_modifier(actor_rank)
+    local rank_modifier = 1
+    print_dbg("actor_rank: " .. actor_rank)
+    if ranks_mods[actor_rank] ~= nil then
+        rank_modifier = ranks_mods[actor_rank]
+        print_dbg("rank_modifier: " .. rank_modifier)
+    end
+    return rank_modifier
+end
+
+local HitTypeID = {
+    [0] = "Burn",
+    [1] = "Shock",
+    [2] = "ChemicalBurn",
+    [3] = "Radiation",
+    [4] = "Telepatic",
+    [5] = "Wound",
+    [6] = "FireWound",
+    [7] = "Strike",
+    [8] = "Explosion",
+    [9] = "Wound_2",
+    [10] = "LightBurn"
+}
+
+local function determine_main_cause_of_death(hits)
+    local hit_counts = count_death_hit_by_type(hits)
+    local top3_hits = get_top_hits(hit_counts)
+    local main_cause_of_death = {}
+
+    for i, hit in ipairs(top3_hits) do
+        if hit.htype == 6 or hit.htype == 9 then
+            table.insert(main_cause_of_death, "gun")
+        elseif hit.htype == 0 or hit.htype == 1 or hit.htype == 2 then
+            table.insert(main_cause_of_death, "elemental")
+        elseif hit.htype == 3 then
+            table.insert(main_cause_of_death, "radiation")
+        elseif hit.htype == 4 then
+            table.insert(main_cause_of_death, "telepatic")
+        elseif hit.htype == 5 then
+            table.insert(main_cause_of_death, "beast")
+        elseif hit.htype == 7 then
+            table.insert(main_cause_of_death, "bruises")
+        elseif hit.htype == 8 then
+            table.insert(main_cause_of_death, "explosion")
+        else
+            table.insert(main_cause_of_death, "unknown")
+        end
+    end
+
+    return main_cause_of_death
+end
+
+local function remove_value_from_array(array, valueToRemove)
+    local newArray = {}
+    for i, v in ipairs(array) do
+        if v ~= valueToRemove then
+            table.insert(newArray, v)
+        end
+    end
+    return newArray
+end
+
+local function table_includes_value(tbl, val)
+    for i, v in ipairs(tbl) do
+        if v == val then
+            return true
+        end
+    end
+    return false
+end
+
+local function table_to_string(tbl)
+    local str = ""
+    for i, v in ipairs(tbl) do
+        if i > 1 then
+            str = str .. ", "
+        end
+        str = str .. v
+    end
+    return str
+end
+
+local function add_to_dropped_item_list(item, status, stash_id)
+    sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    if sleep.dropped_stashes[stash_id] == nil then
+        sleep.dropped_stashes[stash_id] = {
+            last_dropped_item_list = {},
+            last_lost_item_list = {}
+        }
+    end
+    local item_name = ui_item.get_sec_name(item:section()) or 'unknown'
+    local drop_stash = sleep.dropped_stashes[stash_id]
+    if status == "d" then
+        print_dbg("Dropped item: " .. item_name)
+        if drop_stash.last_dropped_item_list[item_name] == nil then
+            drop_stash.last_dropped_item_list[item_name] = 1
+        else
+            drop_stash.last_dropped_item_list[item_name] = drop_stash.last_dropped_item_list[item_name] + 1
+        end
+    elseif status == "l" then
+        print_dbg("Lost item: " .. item_name)
+        if drop_stash.last_lost_item_list[item_name] == nil then
+            drop_stash.last_lost_item_list[item_name] = 1
+        else
+            drop_stash.last_lost_item_list[item_name] = drop_stash.last_lost_item_list[item_name] + 1
+        end
+    end
+    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
+end
+
+local function create_report_msg_string(list_lost_only, stash_id)
+    list_lost_only = list_lost_only or false
+    sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    local stash_items = sleep.dropped_stashes[stash_id] or nil
+    local msg = ""
+    if not list_lost_only and stash_items then
+        for item_name, count in pairs(stash_items.last_dropped_item_list) do
+            msg = msg .. "- " .. item_name .. " x" .. count .. " \\n"
+            -- print_dbg("Dropped item: " .. item_name .. " x" .. count)
+        end
+    end
+    if stash_items then
+        for item_name, count in pairs(stash_items.last_lost_item_list) do
+            msg = msg .. "- " .. item_name .. " x" .. count .. " \\n"
+            -- print_dbg("Lost item: " .. item_name .. " x" .. count)
+        end
+    end
+    return msg
+end
+
+local function send_items_report_news_msg(list_lost, stash_id)
+    local items_recount = create_report_msg_string(list_lost, stash_id)
+    local msg = list_lost and "You lost or got steal:" or
+                    "You woke up and did a quick item recount, looks like this is missing:"
+    db.actor:give_game_news("Item recount", tostring(msg .. " \\n" .. items_recount), "ui_inGame2_neutral_2_mask", 0,
+        20000)
+end
+
+local function isFoodKind(item)
+    return (ini_sys:r_string_ex(item:section(), "kind") == "i_food")
+end
+
+local function isMedicalKind(item)
+    return (ini_sys:r_string_ex(item:section(), "kind") == "i_medical")
+end
+-- End of Utils
 
 function load_settings()
     max_money_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_percentage")
     max_money_to_drop_percentage = Dude_where_is_my_gear_mcm.get_config("max_money_to_drop_percentage")
+    drop_all_money = Dude_where_is_my_gear_mcm.get_config("drop_all_money")
     max_condition_lose = Dude_where_is_my_gear_mcm.get_config("max_condition_lose")
     min_condition_lose = Dude_where_is_my_gear_mcm.get_config("min_condition_lose")
     enable_time_forward = Dude_where_is_my_gear_mcm.get_config("enable_time_forward")
@@ -48,12 +299,17 @@ function load_settings()
     lose_item_condition = Dude_where_is_my_gear_mcm.get_config("lose_item_condition")
     keep_equipped_guns_chance = Dude_where_is_my_gear_mcm.get_config("keep_equipped_guns_chance")
     keep_equipped_outfit_chance = Dude_where_is_my_gear_mcm.get_config("keep_equipped_outfit_chance")
+    keep_misc_items_chance = Dude_where_is_my_gear_mcm.get_config("keep_misc_items_chance")
     full_heal_chance = Dude_where_is_my_gear_mcm.get_config("full_heal_chance")
     full_satiety_chance = Dude_where_is_my_gear_mcm.get_config("full_satiety_chance")
     meal_chance = Dude_where_is_my_gear_mcm.get_config("meal_chance")
     chance_of_losing_items = Dude_where_is_my_gear_mcm.get_config("chance_of_losing_items")
     campfire_save = Dude_where_is_my_gear_mcm.get_config("campfire_save")
     always_wake_up_daytime = Dude_where_is_my_gear_mcm.get_config("always_wake_up_daytime")
+    remove_previous_stash = Dude_where_is_my_gear_mcm.get_config("remove_previous_stash")
+    use_kill_type_mod = Dude_where_is_my_gear_mcm.get_config("use_kill_type_mod")
+    use_rank_mod = Dude_where_is_my_gear_mcm.get_config("use_rank_mod")
+    use_campfire_respawn = Dude_where_is_my_gear_mcm.get_config("use_campfire_respawn")
 end
 
 function on_game_start()
@@ -78,6 +334,21 @@ function on_game_load()
     UnregisterScriptCallback("actor_on_before_death", actor_on_before_death)
     RegisterScriptCallback("actor_on_before_death", actor_on_before_death)
     exec_console_cmd("snd_volume_eff " .. options_vol)
+    actor_rep = utils_obj.get_reputation_name(db.actor:character_reputation())
+    actor_rank = ranks.get_obj_rank_name(db.actor)
+    -- Make sure older versions are updated:
+    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    if not sleep.last_dropped_item_list then
+        sleep.last_dropped_item_list = {}
+        sleep.last_lost_item_list = {}
+    end
+    if sleep.dead then
+        sleep.dead = false
+        db.actor:give_game_news("Recovery", sleep.wounds_status_msg .. sleep.health_status_msg, "ui_inGame2_neutral_2_mask", 0, 20000)
+        -- db.actor:give_game_news("Severe Injured", sleep.health_status_msg, "ui_inGame2_neutral_2_mask", 5000, 20000)
+    end
+    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
+    actor_last_health = db.actor.health
 end
 
 function print_dbg(text, ...)
@@ -89,6 +360,11 @@ end
 function actor_on_before_hit(shit, bone_id, flag)
     local current_time = time_global()
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    if actor_last_health > db.actor.health then
+        check_attack_history_expiration()
+        add_hit_record(shit)
+        actor_last_health = db.actor.health
+    end
     if sleep and sleep.last_death_time then
         local invulnerable_time = sleep.last_death_time + 65000
         if invulnerable_time < current_time then
@@ -102,24 +378,23 @@ function actor_on_before_hit(shit, bone_id, flag)
                 shit.power = 0
                 db.actor.health = global_healing
             end
-
         end
     end
 end
 
 local direction_keys = {
-	[key_bindings.kFWD] = true,
-	[key_bindings.kBACK] = true,
-	[key_bindings.kL_STRAFE] = true,
-	[key_bindings.kR_STRAFE] = true,
-	[key_bindings.kCROUCH] = true,
-	[key_bindings.kACCEL] = true,
+    [key_bindings.kFWD] = true,
+    [key_bindings.kBACK] = true,
+    [key_bindings.kL_STRAFE] = true,
+    [key_bindings.kR_STRAFE] = true,
+    [key_bindings.kCROUCH] = true,
+    [key_bindings.kACCEL] = true,
     [key_bindings.kWPN_FIRE] = true,
     [key_bindings.kWPN_ZOOM] = true,
     [key_bindings.kL_LOOKOUT] = true,
     [key_bindings.kR_LOOKOUT] = true,
     [key_bindings.kJUMP] = true,
-	[7] = true,
+    [7] = true
 }
 
 function on_key_press(dik)
@@ -132,18 +407,20 @@ end
 function actor_on_before_death(who, flags)
     local current_time = time_global()
     if last_death_time < current_time then
-        print_dbg("set_last_death_time %s")
         last_death_time = current_time + 10000
         respawn_done = false
         sleep.last_death_time = last_death_time
         alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     end
     if last_death_time > current_time and not respawn_done then
+        actor_rep = utils_obj.get_reputation_name(db.actor:character_reputation())
+        actor_rank = ranks.get_obj_rank_name(db.actor)
+        local final_cause_of_death = determine_main_cause_of_death(death_last_attacks)
         respawn_done = true
         db.actor:set_health_ex(1)
         if not currently_respawning then
             print_dbg("currently_respawning if NOT %s", currently_respawning)
-            drop_stash()
+            drop_stash(final_cause_of_death, actor_rank, actor_rep)
             currently_respawning = 1
         end
 
@@ -207,7 +484,7 @@ function actor_on_before_death(who, flags)
         if math.random(1, 100) <= full_satiety_chance then
             satiety = 1
         else
-            -- Logic: actor can get a meal every 6 hours 
+            -- Logic: actor can get a meal every 6 hours
             if satiety_minus_per_hour * p[1] >= satiety then
                 satiety = 0.2
             else
@@ -226,30 +503,30 @@ function actor_on_before_death(who, flags)
 
         if currently_respawning == 2 then
             print_dbg("currently_respawning if 2 %s", currently_respawning)
+            sleep.health_status_msg = "You have been out of action for a while"
             if enable_time_forward then
                 xr_effects.forward_game_time(nil, nil, p)
-                -- level.change_game_time(0, p[1], 0)
-                local forward_text = tostring("You have been out of action for " .. p[1] .. " Hours and " .. p[2] ..
-                                                  " Minutes")
-                db.actor:give_game_news("Severe Injured", forward_text, "ui_inGame2_neutral_2_mask", 0, 20000)
+                sleep.health_status_msg = tostring(
+                    " You have been out of action for " .. p[1] .. " Hours and " .. p[2] .. " Minutes")
             end
             currently_respawning = 3
         end
 
         if currently_respawning == 3 then
             currently_respawning = 4
-        end
-
-        if currently_respawning == 4 then
-            print_dbg("currently_respawning if 3 %s", currently_respawning)
             bind_stalker_ext.respawn_new_health = healing
             global_healing = healing
             global_satiety = satiety
             global_power = power
-            db.actor:give_game_news("Recovery",
-                tostring("You feel better " .. math.floor(global_healing * 100 + 0.5) .. "% of health " ..
-                             math.floor(global_satiety * 100 + 0.5) .. "% Satiety"), "ui_inGame2_neutral_2_mask", 0,
-                20000)
+            local wounds_list_str = table_to_string(final_cause_of_death)
+            wounds_list_str = wounds_list_str:gsub(",([^,]+)$", " and%1")
+            sleep.wounds_status_msg = tostring("You're finally awake, you have been treated for " .. wounds_list_str ..
+                                                   " and now feel slightly better " ..
+                                                   math.floor(global_healing * 100 + 0.5) .. "% of health " ..
+                                                   math.floor(global_satiety * 100 + 0.5) .. "% Satiety.")
+        end
+
+        if currently_respawning == 4 then
             currently_respawning = nil
         end
 
@@ -268,20 +545,32 @@ function actor_on_before_death(who, flags)
     db.actor.power = global_power
     arszi_psy.set_psy_health(1)
     flags.ret_value = false
+    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 end
 
 keep_items = nil
 
-function drop_stash()
+function drop_stash(final_cause_of_death, actor_rank, actor_rep)
     sleep.dead = true
     local actor = db.actor
     local se_obj = alife_create("inv_backpack", actor:position(), actor:level_vertex_id(), actor:game_vertex_id())
+    if not sleep.dropped_stashes then
+        sleep.dropped_stashes = {}
+    elseif remove_previous_stash and #sleep.dropped_stashes > 0 then
+        for i, stash_id in ipairs(sleep.dropped_stashes) do
+            if stash_id then
+                sleep.dropped_stashes[stash_id] = nil
+                alife_release_id(stash_id)
+            end
+        end
+    end
     local ignore_items = {
         ["itm_pda_common"] = true,
         ["device_pda_1"] = true,
         ["device_pda_2"] = true,
         ["device_pda_3"] = true,
-        ["detector_simple"] = true
+        ["detector_simple"] = true,
+        ["itm_actor_backpack"] = true
     }
     if (se_obj) then
         local txt = strformat(game.translate_string("st_itm_stash_of_character"), db.actor:character_name())
@@ -295,11 +584,22 @@ function drop_stash()
 
         m_data.player_created_stashes[se_obj.id] = itm_backpack
 
-        -- Lose money
-        local current_money = actor:money()
-        local money_to_lose = math.random(0, math.floor(current_money * max_money_percentage))
-        db.actor:give_money(-money_to_lose)
+        local by_gun_mod = 1
+        local condition_mod = 1
+        local by_beast_mod = 1
+        local general_mod = 1
+        if (use_rank_mod) then
+            general_mod = define_rank_modifier(actor_rank)
+        end
+        if (use_kill_type_mod and table_includes_value(final_cause_of_death)) then
+            by_gun_mod = 0.5
+        elseif (use_kill_type_mod and final_cause_of_death[1] == "elemental") then
+            condition_mod = 0.75
+        elseif (use_kill_type_mod and final_cause_of_death[1] == "beast") then
+            by_beast_mod = 0.5
+        end
 
+        -- Lose money
         local denominations = {{
             name = "money_1000",
             value = 1000
@@ -309,11 +609,26 @@ function drop_stash()
         }, {
             name = "money_10",
             value = 10
+        }, {
+            name = "roubles",
+            value = 1
         }}
+        local current_money = actor:money()
+        -- /by_gun_mod if killed by gun duplicates max amount of money to lost.
+        -- /by_beast_mod if killed by beast reduce by half max amount of money to lost.
+        local money_to_lose = math.random(0, math.floor(current_money * max_money_percentage / by_gun_mod)) *
+                                  by_beast_mod
 
-        local money_left = math.random(math.floor(money_to_lose * 0.15),
-            math.floor(money_to_lose * max_money_to_drop_percentage))
-
+        -- Drop money into dropped stash. by_gun_mod reduces by half amount of money to get back on stash. drop_all_money
+        local money_left = 0
+        if drop_all_money then
+            money_left = current_money
+            db.actor:give_money(-current_money)
+        else
+            db.actor:give_money(-money_to_lose)
+            money_left = math.random(math.floor(money_to_lose * 0.15),
+                math.floor(money_to_lose * max_money_to_drop_percentage)) * by_gun_mod
+        end
         for _, denom in ipairs(denominations) do
             local num_items_to_create = math.floor(money_left / denom.value)
             money_left = money_left % denom.value
@@ -321,68 +636,153 @@ function drop_stash()
                 alife_create_item(denom.name, se_obj)
             end
         end
-
         print_dbg("Total money to lose: " .. money_to_lose)
+
         local function transfer_items(id)
             local obj = level.object_by_id(id)
             if (obj) then
                 local function itr_inv(temp, item)
                     print_dbg("item: %s", item:section())
-                    if not (ignore_items[item:section()]) then
-                        if (item and item:id() ~= b_id and keep_items[item:section()] == nil) then
-                            if (ini_sys:r_bool_ex(item:section(), "quest_item", false) == false) then
-                                local is_keeping_item = math.random(1, 100) >= chance_of_losing_items
-                                if (item_backpack.is_in_slot(item) == true) then
-                                    -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
-                                    if lose_item_condition then
-                                        local condition = item:condition()
-                                        local condition_reduction =
-                                            math.random(min_condition_lose, max_condition_lose) / 100
-                                        condition = condition - condition_reduction
-                                        if (condition < 0) then
-                                            condition = 0
-                                        end
-                                        item:set_condition(condition)
-                                    end
-                                    if IsPistol(item) then
-                                        print_dbg("IsPistol")
-                                    elseif IsWeapon(item) then
-                                        print_dbg("IsWeapon")
-                                        if math.random(1, 100) >= keep_equipped_guns_chance then
-                                            print_dbg("keep_equipped_guns_chance")
-                                            db.actor:transfer_item(item, obj)
-                                        end
-                                    elseif IsOutfit(item) or IsHeadgear(item) then
-                                        print_dbg("IsOutfit")
-                                        if math.random(1, 100) >= keep_equipped_outfit_chance then
-                                            print_dbg("keep_equipped_outfit_chance")
-                                            db.actor:transfer_item(item, obj)
-                                        end
-                                    elseif not is_keeping_item then
-                                        alife_release(item)
-                                    else
-                                        db.actor:transfer_item(item, obj)
-                                    end
-                                elseif item_backpack.is_ammo_for_wpn(item:section()) == true then
-                                    if math.random(1, 100) >= keep_equipped_guns_ammo_chance then
-                                        db.actor:transfer_item(item, obj)
-                                    end
-                                elseif string.match(item:section(), "^mag_") then
-                                    -- Partial compatibility with MagsRedux (always keep all the mags)
-                                elseif not is_keeping_item then
-                                    alife_release(item)
-                                else
-                                    db.actor:transfer_item(item, obj)
-                                end
+                    local section = item:section()
+                    local item_id = item:id()
+
+                    local is_keeping_item = math.random(1, 100) <= keep_misc_items_chance * general_mod
+                    local is_not_losing_item = math.random(1, 100) >= chance_of_losing_items / general_mod
+
+                    if ignore_items[section] then
+                        return
+                    end
+
+                    if item_id == b_id or keep_items[section] ~= nil then
+                        return
+                    end
+
+                    if ini_sys:r_bool_ex(section, "quest_item", false) then
+                        return
+                    end
+
+                    -- if item is in slot get current item:condition() and reduce it randomly between 2% and 20%
+                    if lose_item_condition then
+                        local condition = item:condition()
+                        -- if killed by elemental damage increase condition lose of equipped items
+                        local condition_reduction =
+                            (math.random(min_condition_lose, max_condition_lose) / condition_mod / general_mod) / 100
+                        condition = condition - condition_reduction
+                        if (condition < 0) then
+                            condition = 0
+                        end
+                        item:set_condition(condition)
+                    end
+
+                    if IsPistol(item) or IsMelee(item) then
+                        -- Ignore pistols and melee type until "experienced" rank
+                        if actor_rank ~= "novice" and actor_rank ~= "trainee" then
+                            if item_backpack.is_in_slot(item) == true and math.random(1, 100) <=
+                                (keep_equipped_guns_chance * general_mod) then
+                                print_dbg("keep_equipped_guns_chance")
+                            elseif math.random(1, 100) <=
+                                (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
+                                alife_release(item)
+                                add_to_dropped_item_list(item, 'l', se_obj.id)
+                            else
+                                db.actor:transfer_item(item, obj)
+                                add_to_dropped_item_list(item, 'd', se_obj.id)
                             end
                         end
+                    elseif IsWeapon(item) then
+                        print_dbg("IsWeapon")
+                        -- If killed by gun chance of losing equipped weapon is increased by by_gun_mod
+                        if item_backpack.is_in_slot(item) == true and math.random(1, 100) <=
+                            (keep_equipped_guns_chance * general_mod) then
+                            print_dbg("keep_equipped_guns_chance")
+                        elseif math.random(1, 100) <=
+                            (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
+                            alife_release(item)
+                            add_to_dropped_item_list(item, 'l', se_obj.id)
+                        else
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd', se_obj.id)
+                        end
+                    elseif IsOutfit(item) or IsHeadgear(item) then
+                        print_dbg("IsOutfit")
+                        -- If killed by gun chance of losing equipped outfit is increased by by_gun_mod
+                        if item_backpack.is_in_slot(item) == true and math.random(1, 100) <=
+                            (keep_equipped_outfit_chance * general_mod) then
+                            print_dbg("keep_equipped_outfit_chance")
+                        elseif math.random(1, 100) <=
+                            (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
+                            alife_release(item)
+                            add_to_dropped_item_list(item, 'l', se_obj.id)
+                        else
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd', se_obj.id)
+                        end
+                    elseif item_backpack.is_ammo_for_wpn(item:section()) == true then
+                        if math.random(1, 100) <= (keep_equipped_guns_ammo_chance * general_mod) then
+                            return
+                        elseif math.random(1, 100) <=
+                            (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
+                            alife_release(item)
+                            add_to_dropped_item_list(item, 'l', se_obj.id)
+                        else
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd', se_obj.id)
+                        end
+                    elseif string.match(item:section(), "^mag_") then
+                        local is_carried_mag = magazine_binder and magazine_binder.is_carried_mag
+                        local toggle_carried_mag = magazine_binder and magazine_binder.toggle_carried_mag
+                        local is_magazine = magazine_binder and magazine_binder.is_magazine
+                        if is_magazine(item:section()) and is_carried_mag(item:id()) then
+                            toggle_carried_mag(item:id())
+                        end
+                        if math.random(1, 100) <= (keep_equipped_guns_ammo_chance * general_mod) then
+                            return
+                        elseif math.random(1, 100) <=
+                            (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
+                            alife_release(item)
+                            add_to_dropped_item_list(item, 'l', se_obj.id)
+                        else
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd', se_obj.id)
+                        end
+                    elseif isMedicalKind(item) then
+                        -- If killed by gun chance of losing medical items is increased by by_gun_mod
+                        if math.random(1, 100) <=
+                            (chance_of_losing_items / by_gun_mod / general_mod * by_beast_mod * condition_mod) then
+                            alife_release(item)
+                            add_to_dropped_item_list(item, 'l', se_obj.id)
+                        else
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd', se_obj.id)
+                        end
+                    elseif isFoodKind(item) then
+                        -- If killed by beast chance of losing food is increased by by_beast_mod
+                        if math.random(1, 100) <=
+                            (chance_of_losing_items / by_beast_mod / general_mod * by_gun_mod * condition_mod) then
+                            alife_release(item)
+                            add_to_dropped_item_list(item, 'l', se_obj.id)
+                        else
+                            db.actor:transfer_item(item, obj)
+                            add_to_dropped_item_list(item, 'd', se_obj.id)
+                        end
+                    elseif is_keeping_item then
+                        return
+                    elseif not is_not_losing_item then
+                        alife_release(item)
+                        add_to_dropped_item_list(item, 'l', se_obj.id)
+                    else
+                        db.actor:transfer_item(item, obj)
+                        add_to_dropped_item_list(item, 'd', se_obj.id)
                     end
                 end
+                print_dbg("Dropped stash %s", se_obj.id)
                 db.actor:iterate_inventory(itr_inv)
+                send_items_report_news_msg(false, se_obj.id)
                 return true
             end
             return false
         end
+        alife_storage_manager.get_state().dude_where_is_my_gear = sleep
         CreateTimeEvent("RAX SleepSpawn", "actor_backpack", 0, transfer_items, se_obj.id)
     end
 end
@@ -424,12 +824,15 @@ function save_position(stash_data)
         sleep.sleep_created = true
         sleep.type = "sleep"
     end
+    local save_message = strformat("Respawn point set.", text)
+    exec_console_cmd("main_menu off")
+    actor_menu.set_msg(1, save_message, 4)
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 end
 
 function actor_on_sleep()
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
-    if not sleep.stash_created or sleep.stash_created == false then
+    if not use_campfire_respawn and not sleep.stash_created or sleep.stash_created == false then
         print_dbg("SET POSITION on SLEEP")
         sleep.sleep_created = true;
         save_position()
@@ -437,6 +840,9 @@ function actor_on_sleep()
 end
 
 function actor_on_stash_create(stash_data)
+    if use_campfire_respawn then
+        return
+    end
     local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
     sleep.stash_created = true;
     save_position(stash_data)
@@ -448,32 +854,40 @@ function actor_on_stash_remove(stash_data)
         sleep.stash_created = false;
         sleep.stash_save = nil
         sleep.type = "sleep"
-        alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     end
+    if sleep.dropped_stashes and sleep.dropped_stashes[stash_data.stash_id] then
+        send_items_report_news_msg(true, stash_data.stash_id)
+        sleep.dropped_stashes[stash_data.stash_id] = nil
+    end
+    alife_storage_manager.get_state().dude_where_is_my_gear = sleep
 end
 
--- NOT WORKING, NEED TO FIGURE OUT ANOTHER APPROACH
 function actor_on_save()
-    -- print_dbg("ON SAVE | %s %s", sleep.stash_created, sleep.sleep_created)
-    -- if sleep.stash_created == false and sleep.sleep_created == false then
-    --     print_dbg("SET POSITION on SAVE")
-    --     save_position()
-    -- end
+
 end
 
 function on_before_save_input(flags, typ_, text)
+    local sleep = alife_storage_manager.get_state().dude_where_is_my_gear or sleep
+    local nearby_campfire = bind_campfire.get_nearby_campfire(10, true)
+    if not nearby_campfire then
+        return
+    end
+    if use_campfire_respawn then
+        print_dbg("SET POSITION on CAMPFIRE")
+        sleep.sleep_created = true;
+        save_position()
+    end
     if not campfire_save then
         local error_message = strformat("Campfire save not allowed.", text)
         -- always prevent saving.
         exec_console_cmd("main_menu off")
         flags.ret = true
         actor_menu.set_msg(1, error_message, 4)
-
     end
 end
+
 function save_state(mdata)
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
-
 end
 
 function load_state(mdata)
@@ -487,74 +901,64 @@ function on_tutor_gameover_respawn()
     currently_respawning = nil
     -- Test fix for bleeding after respawning
     db.actor.bleeding = 1
-    if sleep and
-        (sleep.posX and sleep.level and (sleep.level ~= level.name())) or
-        (sleep.stash_save and sleep.stash_save.posX and sleep.stash_save.level and (sleep.stash_save.level ~= level.name())) then
+    if sleep and (sleep.posX and sleep.level and (sleep.level ~= level.name())) or
+        (sleep.stash_save and sleep.stash_save.posX and sleep.stash_save.level and
+            (sleep.stash_save.level ~= level.name())) then
         print_dbg("SAME LEVEL TELEPORT")
-        if sleep.stash_created then
+        if sleep.stash_created and not use_campfire_respawn then
             local player_vector_x = sleep.stash_save.posX
             local player_vector_y = sleep.stash_save.posY
             local player_vector_z = sleep.stash_save.posZ
-            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.stash_save.level_vert, sleep.stash_save.game_vert, VEC_ZERO,
-                true)
+            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.stash_save.level_vert,
+                sleep.stash_save.game_vert, VEC_ZERO, true)
         else
             local player_vector_x = sleep.posX
             local player_vector_y = sleep.posY
             local player_vector_z = sleep.posZ
-            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.level_vert, sleep.game_vert, VEC_ZERO, true)
+            ChangeLevel(vector():set(player_vector_x, player_vector_y, player_vector_z), sleep.level_vert,
+                sleep.game_vert, VEC_ZERO, true)
         end
-    elseif sleep and (sleep.posX or sleep.stash_save and sleep.stash_save.posX)  then
+    elseif sleep and (sleep.posX or sleep.stash_save and sleep.stash_save.posX) then
         local player_lvid = db.actor:level_vertex_id()
         local player_gvid = db.actor:game_vertex_id()
         print_dbg("DIFFERENT LEVEL TELEPORT")
-        if sleep.stash_created then
+        if sleep.stash_created and not use_campfire_respawn then
             local player_vector_x = sleep.stash_save.posX
             local player_vector_y = sleep.stash_save.posY
             local player_vector_z = sleep.stash_save.posZ
             xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
-            player_gvid, VEC_ZERO, true)
+                player_gvid, VEC_ZERO, true)
         else
             local player_vector_x = sleep.posX
             local player_vector_y = sleep.posY
             local player_vector_z = sleep.posZ
             xr_effects.change_level_now(vector():set(player_vector_x, player_vector_y, player_vector_z), player_lvid,
-            player_gvid, VEC_ZERO, true)
+                player_gvid, VEC_ZERO, true)
         end
     elseif db.actor:character_community() == "actor_stalker" then -- if loner >>
         print_dbg("LONER TELEPORT")
         xr_effects.change_level_now(vector():set(-246.0744, -24.8076, -136.0753), 14372, 372, VEC_ZERO, true) -- sidorovich's bunker
-
     elseif db.actor:character_community() == "actor_army" then -- if military >>
         xr_effects.change_level_now(vector():set(-123.26, -28.4, -379.96), 133511, 450, VEC_ZERO, true) -- southern checkpoint
-
     elseif db.actor:character_community() == "actor_bandit" then -- if bandit >>
         xr_effects.change_level_now(vector():set(20.72, 7.85, -42.93), 189149, 1515, VEC_ZERO, true) -- northern factory
-
     elseif db.actor:character_community() == "actor_csky" then -- if clear sky >>
         xr_effects.change_level_now(vector():set(-140.56, 1.5, -317.99), 75660, 136, VEC_ZERO, true) -- hidden base
-
     elseif db.actor:character_community() == "actor_dolg" then -- if duty >>
         xr_effects.change_level_now(vector():set(229.09, -5.449, 128.31), 59298, 1704, VEC_ZERO, true) -- duty headquarter
-
     elseif db.actor:character_community() == "actor_ecolog" then -- if ecologist >>
         xr_effects.change_level_now(vector():set(28.96, -10.05, -280.12), 78646, 2281, VEC_ZERO, true) -- sakharovs bunker
-
     elseif db.actor:character_community() == "actor_freedom" then -- if freedom >>
         xr_effects.change_level_now(vector():set(-18.02, -2.46, -31.74), 274912, 2092, VEC_ZERO, true) -- military base
-
     elseif db.actor:character_community() == "actor_killer" then -- if mercenary >>
         xr_effects.change_level_now(vector():set(-56.6, 8.92, 37.57), 96425, 2367, VEC_ZERO, true) -- sports center
-
     elseif db.actor:character_community() == "actor_monolith" then -- if monolith >>
         xr_effects.change_level_now(vector():set(-3.59, -3.50, 189.80), 98087, 3069, VEC_ZERO, true) -- cultural center
-
     elseif db.actor:character_community() == "actor_monolith" then -- if sin >>
         xr_effects.change_level_now(vector():set(-152.36056518555, 2.2933793067932, -26.791021347046), 5570, 2772,
             VEC_ZERO, true) -- red forest old mine
-
     elseif db.actor:character_community() == "actor_monolith" then -- if renegade >>
         xr_effects.change_level_now(vector():set(-179.78, 4.13, 417.23), 52100, 80, VEC_ZERO, true) -- tuzla outpost
-
     else -- if unisg/ other >>
         xr_effects.change_level_now(vector():set(136.32, 28.9, 240.395), 348892, 4920, VEC_ZERO, true) -- hideout in outskirts
     end
