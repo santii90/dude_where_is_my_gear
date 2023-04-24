@@ -342,10 +342,10 @@ function on_game_load()
         sleep.last_dropped_item_list = {}
         sleep.last_lost_item_list = {}
     end
-    if sleep and sleep.dead then
+    if sleep.dead then
         sleep.dead = false
-        db.actor:give_game_news("Recovery", sleep.wounds_status_msg, "ui_inGame2_neutral_2_mask", 15000, 20000)
-        db.actor:give_game_news("Severe Injured", sleep.health_status_msg, "ui_inGame2_neutral_2_mask", 5000, 20000)
+        db.actor:give_game_news("Recovery", sleep.wounds_status_msg .. sleep.health_status_msg, "ui_inGame2_neutral_2_mask", 0, 20000)
+        -- db.actor:give_game_news("Severe Injured", sleep.health_status_msg, "ui_inGame2_neutral_2_mask", 5000, 20000)
     end
     alife_storage_manager.get_state().dude_where_is_my_gear = sleep
     actor_last_health = db.actor.health
@@ -507,7 +507,7 @@ function actor_on_before_death(who, flags)
             if enable_time_forward then
                 xr_effects.forward_game_time(nil, nil, p)
                 sleep.health_status_msg = tostring(
-                    "You have been out of action for " .. p[1] .. " Hours and " .. p[2] .. " Minutes")
+                    " You have been out of action for " .. p[1] .. " Hours and " .. p[2] .. " Minutes")
             end
             currently_respawning = 3
         end
@@ -523,7 +523,7 @@ function actor_on_before_death(who, flags)
             sleep.wounds_status_msg = tostring("You're finally awake, you have been treated for " .. wounds_list_str ..
                                                    " and now feel slightly better " ..
                                                    math.floor(global_healing * 100 + 0.5) .. "% of health " ..
-                                                   math.floor(global_satiety * 100 + 0.5) .. "% Satiety")
+                                                   math.floor(global_satiety * 100 + 0.5) .. "% Satiety.")
         end
 
         if currently_respawning == 4 then
