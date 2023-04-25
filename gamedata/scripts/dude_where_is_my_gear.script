@@ -342,7 +342,7 @@ function on_game_load()
         sleep.last_dropped_item_list = {}
         sleep.last_lost_item_list = {}
     end
-    if sleep.dead then
+    if sleep.dead and sleep.health_status_msg and sleep.wounds_status_msg then
         sleep.dead = false
         db.actor:give_game_news("Recovery", sleep.wounds_status_msg .. sleep.health_status_msg, "ui_inGame2_neutral_2_mask", 0, 20000)
         -- db.actor:give_game_news("Severe Injured", sleep.health_status_msg, "ui_inGame2_neutral_2_mask", 5000, 20000)
