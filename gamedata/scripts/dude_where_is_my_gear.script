@@ -353,7 +353,7 @@ end
 
 function print_dbg(text, ...)
     if true then
-        printf("RAX: | %s |  " .. text, time_global(), ...)
+        printf("DUD: | %s |  " .. text, time_global(), ...)
     end
 end
 
