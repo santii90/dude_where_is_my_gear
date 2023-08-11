@@ -29,7 +29,6 @@ jobs:
         with:
           token: ${{ github.token }}
           includeInvalidCommits: true
-          tag: ${{ github.ref_name }}
       - name: Upload Release
         uses: ncipollo/release-action@v1.12.0
         with:
