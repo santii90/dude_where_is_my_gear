@@ -40,9 +40,13 @@ jobs:
           artifacts: "dude_where_is_my_gear_v${{ github.ref_name }}.zip"
           body: ${{ steps.changelog.outputs.changes }}
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
       - name: Commit CHANGELOG.md
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          branch: main
-          commit_message: 'docs: update CHANGELOG.md for ${{ github.ref_name }} [skip ci]'
+          branch: ${{ steps.extract_branch.outputs.branch }}
+          commit_message: "docs: update CHANGELOG.md for ${{ steps.extract_branch.outputs.branch }} [skip ci]"
           file_pattern: CHANGELOG.md
