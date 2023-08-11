@@ -1,0 +1,31 @@
+name: Update Changelog on Commit
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Update CHANGELOG
+        id: changelog
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          includeInvalidCommits: true
+          # Assuming the current commit as the latest tag.
+          # You might adjust this as per your requirements.
+          tag: ${{ github.sha }}
+
+      - name: Commit CHANGELOG.md
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          branch: main
+          commit_message: "docs: update CHANGELOG.md for commit ${{ github.sha }} [skip ci]"
+          file_pattern: CHANGELOG.md

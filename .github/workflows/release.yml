@@ -23,13 +23,6 @@ jobs:
           7z a ../dude_where_is_my_gear_v${{ env.VERSION }}.zip *
         env:
           VERSION: ${{ github.ref_name }}
-      - name: Update CHANGELOG
-        id: changelog
-        uses: requarks/changelog-action@v1
-        with:
-          token: ${{ github.token }}
-          includeInvalidCommits: true
-          tag: ${{ github.ref_name }}
       - name: Upload Release
         uses: ncipollo/release-action@v1.12.0
         with:
