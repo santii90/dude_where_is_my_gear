@@ -24,6 +24,15 @@ function on_mcm_load()
             {id = "use_kill_type_mod",                  type = "check", val = 1, def = true},
             {id = "use_rank_modifier",                  type = "check", val = 1, def = true},
             {id = "use_campfire_respawn",               type = "check", val = 1, def = false},
+            {id = "rank_novice",                        type = "input", val = 2, min=0,    max=101, def = 1.8},
+            {id = "rank_trainee",                       type = "input", val = 2, min=0,    max=101, def = 1.65},
+            {id = "rank_experienced",                   type = "input", val = 2, min=0,    max=101, def = 1.45},
+            {id = "rank_professional",                  type = "input", val = 2, min=0,    max=101, def = 1.35},
+            {id = "rank_professional",                  type = "input", val = 2, min=0,    max=101, def = 1.35},
+            {id = "rank_veteran",                       type = "input", val = 2, min=0,    max=101, def = 1.1},
+            {id = "rank_expert",                        type = "input", val = 2, min=0,    max=101, def = 0.95},
+            {id = "rank_master",                        type = "input", val = 2, min=0,    max=101, def = 0.85},
+            {id = "rank_legend",                        type = "input", val = 2, min=0,    max=101, def = 0.75},
 		}
     }
     return op
@@ -52,6 +61,14 @@ local defaults = {
     ["use_kill_type_mod"] = true,
     ["use_rank_modifier"] = true,
     ["use_campfire_respawn"] = false,
+    ["rank_novice"] = 1.8,
+    ["rank_trainee"] = 1.65,
+    ["rank_experienced"] = 1.45,
+    ["rank_professional"] = 1.35,
+    ["rank_veteran"] = 1.1,
+    ["rank_expert"] = 0.95,
+    ["rank_master"] = 0.85,
+    ["rank_legend"] = 0.75,
 }
     
 function get_config(key)

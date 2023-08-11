@@ -310,6 +310,15 @@ function load_settings()
     use_kill_type_mod = Dude_where_is_my_gear_mcm.get_config("use_kill_type_mod")
     use_rank_mod = Dude_where_is_my_gear_mcm.get_config("use_rank_mod")
     use_campfire_respawn = Dude_where_is_my_gear_mcm.get_config("use_campfire_respawn")
+    ranks_mods["novice"] = Dude_where_is_my_gear_mcm.get_config("rank_novice")
+    ranks_mods["trainee"] = Dude_where_is_my_gear_mcm.get_config("rank_trainee")
+    ranks_mods["experienced"] = Dude_where_is_my_gear_mcm.get_config("rank_experienced")
+    ranks_mods["professional"] = Dude_where_is_my_gear_mcm.get_config("rank_professional")
+    ranks_mods["veteran"] = Dude_where_is_my_gear_mcm.get_config("rank_veteran")
+    ranks_mods["expert"] = Dude_where_is_my_gear_mcm.get_config("rank_expert")
+    ranks_mods["master"] = Dude_where_is_my_gear_mcm.get_config("rank_master")
+    ranks_mods["legend"] = Dude_where_is_my_gear_mcm.get_config("rank_legend")
+
 end
 
 function on_game_start()
